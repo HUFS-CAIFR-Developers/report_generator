@@ -1,0 +1,3 @@
+지연 전송 완료: /Users/jegalminchan/news-analyst-report/output/~$26-09-23_1026_삼성전자_report.pdf
+{'input': '/Users/jegalminchan/news-analyst-report/output/2026-09-29_1928_삼성전자_report.docx', 'output': '/Users/jegalminchan/news-analyst-report/output/2026-09-29_1928_삼성전자_report.pdf', 'result': 'error', 'error': 'Error: 메시지를 이해할 수 없습니다.'}
+지연 전송 완료: /Users/jegalminchan/news-analyst-report/output/2026-09-29_1928_삼성전자_report.pdf
