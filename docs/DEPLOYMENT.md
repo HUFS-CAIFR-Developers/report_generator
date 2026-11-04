@@ -53,3 +53,19 @@ ssh caifr-oracle 'cd ~/report_generator && mkdir -p output logs && docker build 
 ```
 
 수동 실행은 같은 `docker run` 명령을 그대로 돌리면 된다 (휴장일에는 건너뛴다).
+
+## DART 공시 알림 (`dart_monitor.py`)
+
+같은 이미지로 개장일 08~19시(KST)에 30분마다 돈다. 관심 종목(코스피200·코스닥150)의 주요 공시만 팀 텔레그램 채널(`TELEGRAM_CHAT_ID`)로 보낸다.
+이미 보낸 공시 기록(`data/dart_sent_ids.json`)은 컨테이너가 지워져도 남도록 서버 파일 `~/report_generator/state/dart_sent_ids.json`을 연결한다. 처음 한 번 만든다.
+
+```bash
+ssh caifr-oracle 'mkdir -p ~/report_generator/state && cp -n ~/report_generator/data/dart_sent_ids.json ~/report_generator/state/'
+```
+
+cron (UTC). 일요일 23시 UTC가 월요일 08시 KST라 두 줄로 나눈다. 휴장일·시간 확인은 스크립트가 한 번 더 한다.
+
+```cron
+*/30 23 * * 0-4 docker run --rm --name caifr-dart-monitor --env-file /home/ubuntu/report_generator/.env -v /home/ubuntu/report_generator/state/dart_sent_ids.json:/app/data/dart_sent_ids.json caifr-report-generator python dart_monitor.py >> /home/ubuntu/report_generator/logs/dart.log 2>&1
+*/30 0-10 * * 1-5 docker run --rm --name caifr-dart-monitor --env-file /home/ubuntu/report_generator/.env -v /home/ubuntu/report_generator/state/dart_sent_ids.json:/app/data/dart_sent_ids.json caifr-report-generator python dart_monitor.py >> /home/ubuntu/report_generator/logs/dart.log 2>&1
+```
