@@ -16,10 +16,9 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 # docx 원본을 매일 보내는 비공개 채널 (사용자 본인만 보는 용도 - PDF 변환은 본인이 직접).
 TELEGRAM_DOCX_CHAT_ID = os.environ.get("TELEGRAM_DOCX_CHAT_ID")
 
-# 외부 서버(api.caifr.com) DB 업로드도 선택 기능. 서버 개발자가 실제 경로/토큰을 확정하면
-# .env의 REPORT_API_URL / REPORT_API_TOKEN만 바꾸면 된다 (report/api_upload.py 참고).
-# 토큰은 서버 쪽에서 `openssl rand -hex 32`로 발급 예정 - 발급되면 .env에 넣어주면 됨.
-REPORT_API_URL = os.environ.get("REPORT_API_URL", "https://api.caifr.com/api/reports")
+# 사이트 업로드 (caifr_backend#53, report/api_upload.py). 토큰은 서버 deploy/.env.app의
+# REPORT_GENERATOR_TOKEN과 같은 값.
+REPORT_API_URL = os.environ.get("REPORT_API_URL", "https://api.caifr.com/api/generator/reports")
 REPORT_API_TOKEN = os.environ.get("REPORT_API_TOKEN")
 REPORT_AUTHOR = "제갈민찬"
 
@@ -44,9 +43,6 @@ DART_SENT_LOG = BASE_DIR / "data" / "dart_sent_ids.json"
 
 TEMPLATE_PATH = BASE_DIR / "report" / "template.docx"
 
-# ~/Documents로 옮기면 팝업이 없어질까 시도해봤으나, 오히려 Word의 AppleScript 자동화가
-# Documents 폴더에 PDF를 저장할 때 -1708(메시지 인식 못함) 오류로 조용히 실패하는 걸 확인함
-# (원래 이 프로젝트 폴더로 저장할 때는 문제없이 성공). 그래서 원래 위치로 되돌림.
 OUTPUT_DIR = BASE_DIR / "output"
 CHART_TMP_DIR = OUTPUT_DIR / ".charts_tmp"
 

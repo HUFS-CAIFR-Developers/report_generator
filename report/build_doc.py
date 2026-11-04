@@ -1,5 +1,6 @@
 import io
 import re
+import subprocess
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -71,22 +72,15 @@ def build_report(context: dict, chart_paths: dict[str, Path]) -> Path:
     return out_path
 
 
-def export_pdf(docx_path: Path) -> Path | None:
-    """생성된 .docx를 같은 폴더에 같은 이름의 .pdf로 내보낸다 (macOS의 Word 자동화 이용).
-    LibreOffice headless 변환도 시도해봤으나 이 환경에서 한글 렌더링 자체가 깨지는
-    문제가 있어 Word 방식으로 되돌렸다 (새 파일마다 뜨는 접근 권한 팝업은 수동으로 눌러줘야 함).
-    Word가 없거나 변환이 실패해도 전체 파이프라인이 중단되지 않도록 예외를 삼키고 None을 반환한다."""
-    from docx2pdf import convert
-
+def export_pdf(docx_path: Path) -> Path:
+    """생성된 .docx를 같은 폴더에 같은 이름의 .pdf로 내보낸다 (LibreOffice headless).
+    서버(Docker)에는 템플릿 글꼴(나눔바른고딕, 맑은 고딕→나눔바른고딕 대체)을 넣어 두었다 (Dockerfile 참고).
+    PDF는 사이트에 올리는 결과물이라 실패하면 예외를 던져 자동실행 실패 알림으로 이어지게 한다."""
     pdf_path = docx_path.with_suffix(".pdf")
-    try:
-        convert(str(docx_path), str(pdf_path))
-    except Exception as e:
-        print(f"PDF 변환 실패 (건너뜀): {e}")
-        return None
-    # 접근 권한 팝업이 응답 없이 방치되면 convert()가 예외 없이 그냥 반환하는 경우가 있어
-    # (자동실행 중 아무도 팝업을 눌러주지 못했을 때), 실제 파일 생성 여부를 다시 확인한다.
+    subprocess.run(
+        ["soffice", "--headless", "--convert-to", "pdf", "--outdir", str(docx_path.parent), str(docx_path)],
+        check=True, capture_output=True, timeout=180,
+    )
     if not pdf_path.exists():
-        print("PDF 변환 실패 (건너뜀): 파일이 생성되지 않음 (접근 권한 팝업 미응답 가능성)")
-        return None
+        raise RuntimeError(f"PDF 변환 결과가 없습니다: {pdf_path}")
     return pdf_path

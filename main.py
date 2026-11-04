@@ -15,7 +15,8 @@ from analysis.report_writer import (
 from analysis.summarize import extract_key_sentence, summarize_article
 from analysis.summary_card import generate_summary_card
 from analysis.text_utils import to_plain_text as _plain
-from report.build_doc import build_report
+from report.api_upload import post_report
+from report.build_doc import build_report, export_pdf
 from report.telegram_notify import send_docx_private, send_report
 from sources.article import fetch_article
 from sources.naver_ranking import fetch_economy_headlines
@@ -76,8 +77,7 @@ def _build_report(article_title: str, article_summary: str, article_key_sentence
     out_path = build_report(context, chart_paths)
     date_dash = datetime.now().strftime("%Y-%m-%d")
 
-    # docx는 Word 자동화 없이 만들어지므로 PDF 변환(느리거나 멈출 수 있음)을 기다리지 않고
-    # 만들어지자마자 바로 비공개 채널로 보낸다.
+    # PDF 변환·업로드가 실패해도 원본은 남도록 docx를 먼저 비공개 채널로 보낸다.
     print("docx 원본 비공개 전송 중...")
     docx_message = f"📄 {date_dash} 원본 docx\n\"{context['title']}\""
     if send_docx_private(out_path, docx_message):
@@ -88,20 +88,26 @@ def _build_report(article_title: str, article_summary: str, article_key_sentence
     print("요약 카드 이미지 생성 중...")
     card_path = generate_summary_card(context, config.OUTPUT_DIR / f"{out_path.stem}_card.png")
 
-    print("텔레그램 전송 중 (카드+텍스트)...")
+    print("PDF 변환 중...")
+    pdf_path = export_pdf(out_path)
+
+    print("텔레그램 전송 중 (카드+PDF)...")
     message_text = (
         f"📝 {date_dash} 시황분석 리포트\n\n"
         f"\"{context['title']}\"\n\n"
         f"자세한 내용은 아래 첨부파일을 참고하세요."
     )
-    if send_report(None, message_text, card_path=card_path):
-        print("카드+텍스트 전송 완료")
+    if send_report(pdf_path, message_text, card_path=card_path):
+        print("카드+PDF 전송 완료")
     else:
-        print("카드+텍스트 전송 건너뜀 (설정 없음 또는 실패)")
+        print("카드+PDF 전송 건너뜀 (설정 없음 또는 실패)")
 
-    # PDF 변환/서버 업로드는 자동화에서 뺐다 - PDF는 사용자가 비공개 채널로 받은 docx를
-    # 직접 변환해서 처리한다.
-    return out_path, None
+    # 텔레그램은 업로드 실패와 상관없이 받도록 먼저 보내고, 업로드 실패는 예외로 실패 알림을 보낸다
+    print("사이트 업로드 중...")
+    uploaded = post_report(pdf_path, card_path, context)
+    print(f"사이트 업로드 완료: {uploaded.get('id', '')}")
+
+    return out_path, pdf_path
 
 
 def run(url: str):

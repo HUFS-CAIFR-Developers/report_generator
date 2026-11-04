@@ -1,4 +1,4 @@
-"""launchd가 매일 아침 실행하는 진입점.
+"""서버 cron이 개장일 아침 9시(KST)에 실행하는 진입점 (DEPLOYMENT.md).
 한국거래소(KRX) 개장일이 아니면(주말·공휴일) 아무것도 하지 않고 종료한다."""
 import os
 import socket
@@ -56,7 +56,7 @@ def main():
         send_text_private(
             f"🚨 {today.strftime('%Y-%m-%d')} 자동실행 실패\n\n"
             f"{_NETWORK_WAIT_MAX_SECONDS}초 기다려도 인터넷 연결이 안 됐습니다.\n"
-            f"맥이 와이파이에 붙어있는지 확인이 필요합니다."
+            f"서버 네트워크 확인이 필요합니다."
         )
         return
     print("네트워크 연결 확인됨")
@@ -80,7 +80,7 @@ def main():
         send_text_private(
             f"🚨 {today.strftime('%Y-%m-%d')} 자동실행 실패\n\n"
             f"{_PIPELINE_TIMEOUT_SECONDS // 60}분 넘게 멈춰있어 강제 종료했습니다.\n"
-            f"리포트가 생성되지 않았습니다. 맥에서 로그 확인이 필요합니다."
+            f"리포트가 생성되지 않았습니다. 서버 로그(~/report_generator/logs/auto.log) 확인이 필요합니다."
         )
         os._exit(1)  # 멈춘 백그라운드 스레드(네트워크 호출 등)까지 통째로 강제 종료
 
@@ -91,7 +91,7 @@ def main():
         send_text_private(
             f"🚨 {today.strftime('%Y-%m-%d')} 자동실행 실패\n\n"
             f"{type(e).__name__}: {e}\n\n"
-            f"리포트가 생성되지 않았습니다. 맥에서 로그 확인이 필요합니다."
+            f"리포트가 생성되지 않았습니다. 서버 로그(~/report_generator/logs/auto.log) 확인이 필요합니다."
         )
         sys.exit(1)
 
