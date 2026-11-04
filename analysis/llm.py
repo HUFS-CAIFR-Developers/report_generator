@@ -37,24 +37,18 @@ def cost_usd(model: str, input_tokens: int, output_tokens: int) -> float:
     return round((prices[0] * input_tokens + prices[1] * output_tokens) / 1_000_000, 6)
 
 
-def usage_items() -> list[dict]:
-    """실행 기록의 usage 항목 (모델별 한 줄)."""
+def usage_snapshot() -> tuple[dict, list[dict]]:
+    """실행 기록의 (stats 중 LLM 부분, usage 항목). 시간초과 때는 작업 스레드가 아직 돌 수 있어 한 번 읽은 값으로 둘 다 만든다."""
     with _lock:
         rows = {model: list(row) for model, row in _usage.items()}
-    return [
+    items = [
         {"model": model, "input_tokens": inp, "output_tokens": out, "cost_usd": cost_usd(model, inp, out)}
         for model, (_, inp, out) in rows.items()
     ]
-
-
-def usage_stats() -> dict:
-    """daily_report 실행 기록의 stats 중 LLM 부분 (llm_calls, input_tokens, output_tokens, cost_usd)."""
-    with _lock:
-        calls = sum(row[0] for row in _usage.values())
-    items = usage_items()
-    return {
-        "llm_calls": calls,
+    stats = {
+        "llm_calls": sum(row[0] for row in rows.values()),
         "input_tokens": sum(i["input_tokens"] for i in items),
         "output_tokens": sum(i["output_tokens"] for i in items),
         "cost_usd": round(sum(i["cost_usd"] for i in items), 6),
     }
+    return stats, items

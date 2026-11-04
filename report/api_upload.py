@@ -91,7 +91,7 @@ def post_run(
             "usage": usage or [],
         }
         # 리포트 업로드 주소(.../api/generator/reports)와 같은 서버의 실행 기록 주소
-        url = config.REPORT_API_URL.rsplit("/", 1)[0] + "/runs"
+        url = config.REPORT_API_URL.rstrip("/").rsplit("/", 1)[0] + "/runs"
         resp = requests.post(
             url,
             json=run,

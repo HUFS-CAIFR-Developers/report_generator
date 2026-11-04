@@ -74,7 +74,11 @@ def main():
     except Exception as e:
         post_run("dart_monitor", "FAILED", today, step="scan", message=f"{type(e).__name__}: {e}", stats=stats)
         raise
-    post_run("dart_monitor", "SUCCEEDED", today, stats=stats)
+    # 보내지 못한 알림이 있으면 다음 실행에서 다시 보내지만, 관리 화면에서 보이도록 실패로 남긴다
+    if stats["failed_sends"]:
+        post_run("dart_monitor", "FAILED", today, step="send", message=f"텔레그램 전송 실패 {stats['failed_sends']}건 (다음 실행에서 다시 보냄)", stats=stats)
+    else:
+        post_run("dart_monitor", "SUCCEEDED", today, stats=stats)
 
 
 def _scan(today: datetime, stats: dict):

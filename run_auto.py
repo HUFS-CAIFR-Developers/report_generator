@@ -47,14 +47,15 @@ def _wait_for_network() -> bool:
 def _post_run(status: str, started_at: datetime, step: str | None = None, message: str | None = None):
     """실행 기록 (POST /api/generator/runs). 기록이 실패해도 본 작업(시간초과 때의 강제 종료 포함)은 그대로 진행한다."""
     try:
+        usage_stats, usage_items = llm.usage_snapshot()
         post_run(
             "daily_report",
             status,
             started_at,
             step=step,
             message=message,
-            stats={**llm.usage_stats(), "uploaded": RUN_STATE["uploaded"]},
-            usage=llm.usage_items(),
+            stats={**usage_stats, "uploaded": RUN_STATE["uploaded"]},
+            usage=usage_items,
         )
     except Exception as e:
         print(f"실행 기록 전송 실패 (건너뜀): {type(e).__name__}: {e}")

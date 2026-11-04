@@ -21,10 +21,11 @@ def check_cost():
     llm.add_usage("unknown-model", SimpleNamespace(input_tokens=10, output_tokens=10))
 
     # then: terra = 2.00 + 12.00 * 0.5, 모르는 모델은 0
-    items = {i["model"]: i for i in llm.usage_items()}
+    stats, usage = llm.usage_snapshot()
+    items = {i["model"]: i for i in usage}
     assert items["gpt-5.6-terra"] == {"model": "gpt-5.6-terra", "input_tokens": 1_000_000, "output_tokens": 500_000, "cost_usd": 8.0}
     assert items["unknown-model"]["cost_usd"] == 0.0
-    assert llm.usage_stats() == {"llm_calls": 3, "input_tokens": 1_000_010, "output_tokens": 500_010, "cost_usd": 8.0}
+    assert stats == {"llm_calls": 3, "input_tokens": 1_000_010, "output_tokens": 500_010, "cost_usd": 8.0}
 
 
 def check_sent_ids_saved_per_send():
