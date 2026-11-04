@@ -4,11 +4,14 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib import font_manager
 import pandas as pd
 
 import config
 
-plt.rcParams["font.family"] = "AppleGothic"
+# 차트 한글(축 이름) 글꼴. 맥은 AppleGothic, 서버(Docker)는 나눔바른고딕
+_installed_fonts = {f.name for f in font_manager.fontManager.ttflist}
+plt.rcParams["font.family"] = next((name for name in ("AppleGothic", "NanumBarunGothic") if name in _installed_fonts), "sans-serif")
 plt.rcParams["axes.unicode_minus"] = False
 
 # 문서 템플릿이 차트 위에 "그림 N. ..." 캡션을 자체적으로 표시하므로
