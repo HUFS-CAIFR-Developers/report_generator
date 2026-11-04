@@ -1,13 +1,11 @@
 import json
 
 import pandas as pd
-from openai import OpenAI
 
 import config
+from analysis import llm
 from analysis.prompt_loader import load_prompt
 from analysis.text_utils import strip_markdown_heading, to_word_paragraphs
-
-_client = OpenAI(api_key=config.OPENAI_API_KEY, timeout=config.OPENAI_TIMEOUT_SECONDS)
 
 
 def _text(resp) -> str:
@@ -48,7 +46,7 @@ _FINAL_SCHEMA = {
 
 
 def write_investment_analysis(corp_name: str, ticker: str, reason: str, article_summary: str) -> str:
-    resp = _client.responses.create(
+    resp = llm.create(
         model=config.MODEL_STANDARD,
         max_output_tokens=2000,
         input=[{
@@ -65,7 +63,7 @@ def write_investment_analysis(corp_name: str, ticker: str, reason: str, article_
 def write_technical_analysis(corp_name: str, ticker: str, technical_data: pd.DataFrame) -> str:
     recent = technical_data.tail(config.TECH_CHART_LOOKBACK_DAYS)
     tech_csv = recent.to_csv(index=False)
-    resp = _client.responses.create(
+    resp = llm.create(
         model=config.MODEL_STANDARD,
         max_output_tokens=3000,
         input=[{
@@ -79,7 +77,7 @@ def write_technical_analysis(corp_name: str, ticker: str, technical_data: pd.Dat
 
 
 def one_sentence_conclusion(text: str) -> str:
-    resp = _client.responses.create(
+    resp = llm.create(
         model=config.MODEL_LIGHT,
         max_output_tokens=300,
         input=[{
@@ -91,7 +89,7 @@ def one_sentence_conclusion(text: str) -> str:
 
 
 def generate_report_title(full_text: str) -> str:
-    resp = _client.responses.create(
+    resp = llm.create(
         model=config.MODEL_STANDARD,
         max_output_tokens=500,
         input=[{"role": "user", "content": _REPORT_TITLE_PROMPT.format(text=full_text)}],
@@ -102,7 +100,7 @@ def generate_report_title(full_text: str) -> str:
 
 
 def generate_final_title_summary(full_text: str) -> tuple[str, str]:
-    resp = _client.responses.create(
+    resp = llm.create(
         model=config.MODEL_LIGHT,
         max_output_tokens=1000,
         input=[{"role": "user", "content": _FINAL_PROMPT.format(text=full_text)}],

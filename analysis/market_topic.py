@@ -1,12 +1,10 @@
 import json
 
-from openai import OpenAI
-
 import config
+from analysis import llm
 from analysis.prompt_loader import load_prompt
 from analysis.text_utils import strip_markdown_heading, to_word_paragraphs
 
-_client = OpenAI(api_key=config.OPENAI_API_KEY, timeout=config.OPENAI_TIMEOUT_SECONDS)
 
 _NO_MARKDOWN_RULE = (
     "마크다운 굵게/기울임 문법(**, * , # 헤더), 번호, 글머리표, 이모지를 쓰지 않는다."
@@ -41,7 +39,7 @@ def _text(resp) -> str:
 def identify_dominant_topic(headlines: list[str]) -> dict:
     """오늘의 경제면 헤드라인 목록에서 반복적으로 등장하는 핵심 이슈를 구조화된 형태로 뽑아낸다."""
     headlines_text = "\n".join(f"{i + 1}. {h}" for i, h in enumerate(headlines))
-    resp = _client.responses.create(
+    resp = llm.create(
         model=config.MODEL_STANDARD,
         max_output_tokens=1500,
         input=[{"role": "user", "content": _TOPIC_PROMPT.format(headlines_text=headlines_text)}],
@@ -54,7 +52,7 @@ def identify_dominant_topic(headlines: list[str]) -> dict:
 
 def write_market_briefing(topic: dict) -> str:
     """오늘의 핵심 이슈(topic)를 바탕으로 4문단짜리 시황 브리핑을 작성한다."""
-    resp = _client.responses.create(
+    resp = llm.create(
         model=config.MODEL_STANDARD,
         max_output_tokens=2000,
         input=[{

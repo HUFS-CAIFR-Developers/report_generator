@@ -1,10 +1,7 @@
-from openai import OpenAI
-
 import config
+from analysis import llm
 from analysis.prompt_loader import load_prompt
 from analysis.text_utils import strip_markdown_heading, to_word_paragraphs
-
-_client = OpenAI(api_key=config.OPENAI_API_KEY, timeout=config.OPENAI_TIMEOUT_SECONDS)
 
 
 def _text(resp) -> str:
@@ -18,7 +15,7 @@ _KEY_SENTENCE_PROMPT = load_prompt("key_sentence")
 
 
 def summarize_article(content: str) -> str:
-    resp = _client.responses.create(
+    resp = llm.create(
         model=config.MODEL_LIGHT,
         max_output_tokens=2000,
         input=[{"role": "user", "content": _SUMMARY_PROMPT.format(content=content, no_markdown=_NO_MARKDOWN_RULE)}],
@@ -27,7 +24,7 @@ def summarize_article(content: str) -> str:
 
 
 def extract_key_sentence(text: str) -> str:
-    resp = _client.responses.create(
+    resp = llm.create(
         model=config.MODEL_LIGHT,
         max_output_tokens=300,
         input=[{"role": "user", "content": _KEY_SENTENCE_PROMPT.format(text=text, no_markdown=_NO_MARKDOWN_RULE)}],
