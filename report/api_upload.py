@@ -52,7 +52,8 @@ def post_report(pdf_path: Path, card_path: Path | None, context: dict, category:
         files=files,
         headers={"Authorization": f"Bearer {config.REPORT_API_TOKEN}"},
         timeout=120,
+        allow_redirects=False,  # 리다이렉트로 PDF·토큰이 다른(평문) 주소로 다시 나가지 않게
     )
-    if not resp.ok:
+    if resp.status_code not in (200, 201):
         raise RuntimeError(f"사이트 업로드 실패 HTTP {resp.status_code}: {resp.text[:300]}")
     return resp.json()
