@@ -10,7 +10,9 @@ from datetime import datetime
 
 import exchange_calendars as xcals
 
-from main import run_auto
+from analysis import llm
+from main import RUN_STATE, run_auto
+from report.api_upload import post_run
 from report.telegram_notify import send_text_private
 
 _NETWORK_WAIT_MAX_SECONDS = 120
@@ -42,6 +44,22 @@ def _wait_for_network() -> bool:
     return False
 
 
+def _post_run(status: str, started_at: datetime, step: str | None = None, message: str | None = None):
+    """실행 기록 (POST /api/generator/runs). 기록이 실패해도 본 작업(시간초과 때의 강제 종료 포함)은 그대로 진행한다."""
+    try:
+        post_run(
+            "daily_report",
+            status,
+            started_at,
+            step=step,
+            message=message,
+            stats={**llm.usage_stats(), "uploaded": RUN_STATE["uploaded"]},
+            usage=llm.usage_items(),
+        )
+    except Exception as e:
+        print(f"실행 기록 전송 실패 (건너뜀): {type(e).__name__}: {e}")
+
+
 def main():
     today = datetime.now()
     print(f"=== {today.isoformat()} 실행 시작 ===")
@@ -58,6 +76,7 @@ def main():
             f"{_NETWORK_WAIT_MAX_SECONDS}초 기다려도 인터넷 연결이 안 됐습니다.\n"
             f"서버 네트워크 확인이 필요합니다."
         )
+        _post_run("FAILED", today, "network", f"{_NETWORK_WAIT_MAX_SECONDS}초 기다려도 인터넷 연결이 안 됐습니다.")
         return
     print("네트워크 연결 확인됨")
     send_text_private(f"🟢 {today.strftime('%Y-%m-%d %H:%M')} 자동실행 시작됨")
@@ -82,6 +101,7 @@ def main():
             f"{_PIPELINE_TIMEOUT_SECONDS // 60}분 넘게 멈춰있어 강제 종료했습니다.\n"
             f"리포트가 생성되지 않았습니다. 서버 로그(~/report_generator/logs/auto.log) 확인이 필요합니다."
         )
+        _post_run("FAILED", today, RUN_STATE["step"], f"{_PIPELINE_TIMEOUT_SECONDS}초 넘게 멈춰 강제 종료했습니다.")
         os._exit(1)  # 멈춘 백그라운드 스레드(네트워크 호출 등)까지 통째로 강제 종료
 
     if "error" in result:
@@ -93,8 +113,10 @@ def main():
             f"{type(e).__name__}: {e}\n\n"
             f"리포트가 생성되지 않았습니다. 서버 로그(~/report_generator/logs/auto.log) 확인이 필요합니다."
         )
+        _post_run("FAILED", today, RUN_STATE["step"], f"{type(e).__name__}: {e}")
         sys.exit(1)
 
+    _post_run("SUCCEEDED", today)
     print(f"완료: {result['out_path']}")
     if result.get("pdf_path"):
         print(f"PDF: {result['pdf_path']}")

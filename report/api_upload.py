@@ -11,6 +11,9 @@
         card   : PNG (선택)
 
 사이트에 올리는 것이 자동실행의 목적이라, 토큰이 없거나 실패하면 예외를 던져 실패 알림으로 이어지게 한다.
+
+실행 기록(post_run)은 같은 서버·토큰으로 POST .../api/generator/runs 에 JSON으로 보낸다.
+기록은 부가 기능이라 주소·토큰이 없으면 건너뛰고, 실패해도 로그만 남긴다.
 """
 import json
 from datetime import datetime
@@ -57,3 +60,46 @@ def post_report(pdf_path: Path, card_path: Path | None, context: dict, category:
     if resp.status_code not in (200, 201):
         raise RuntimeError(f"사이트 업로드 실패 HTTP {resp.status_code}: {resp.text[:300]}")
     return resp.json()
+
+
+def post_run(
+    job: str,
+    status: str,
+    started_at: datetime,
+    *,
+    step: str | None = None,
+    message: str | None = None,
+    stats: dict | None = None,
+    usage: list[dict] | None = None,
+) -> None:
+    """실행 기록 한 건을 보낸다 (job: daily_report|dart_monitor, status: SUCCEEDED|FAILED|SKIPPED). 예외를 던지지 않는다."""
+    try:
+        if not config.REPORT_API_URL or not config.REPORT_API_TOKEN:
+            print("실행 기록 전송 건너뜀 (REPORT_API_URL/REPORT_API_TOKEN 없음)")
+            return
+        if not config.REPORT_API_URL.startswith("https://"):
+            print("실행 기록 전송 건너뜀 (REPORT_API_URL이 https 주소가 아님)")
+            return
+        run = {
+            "job": job,
+            "status": status,
+            "started_at": started_at.astimezone().isoformat(),
+            "finished_at": datetime.now().astimezone().isoformat(),
+            "step": step,
+            "message": message[:1000] if message else None,
+            "stats": stats,
+            "usage": usage or [],
+        }
+        # 리포트 업로드 주소(.../api/generator/reports)와 같은 서버의 실행 기록 주소
+        url = config.REPORT_API_URL.rsplit("/", 1)[0] + "/runs"
+        resp = requests.post(
+            url,
+            json=run,
+            headers={"Authorization": f"Bearer {config.REPORT_API_TOKEN}"},
+            timeout=30,
+            allow_redirects=False,
+        )
+        if resp.status_code not in (200, 201):
+            print(f"실행 기록 전송 실패 HTTP {resp.status_code}: {resp.text[:300]}")
+    except Exception as e:
+        print(f"실행 기록 전송 실패 (건너뜀): {type(e).__name__}: {e}")
