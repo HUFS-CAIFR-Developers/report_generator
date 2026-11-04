@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 
 import requests
@@ -10,6 +11,12 @@ _API_BASE = "https://api.telegram.org"
 def _post(method: str, data: dict, files: dict | None = None) -> bool:
     url = f"{_API_BASE}/bot{config.TELEGRAM_BOT_TOKEN}/{method}"
     resp = requests.post(url, data=data, files=files, timeout=60)
+    if resp.status_code == 429:
+        # 너무 자주 보냈다는 응답이면 텔레그램이 알려 준 시간(retry_after초)만큼 한 번 기다렸다 다시 보낸다
+        time.sleep(resp.json().get("parameters", {}).get("retry_after", 1))
+        for _, file in (files or {}).values():
+            file.seek(0)  # 첫 요청이 파일을 끝까지 읽었으므로 처음부터 다시 보낸다
+        resp = requests.post(url, data=data, files=files, timeout=60)
     resp.raise_for_status()
     return True
 

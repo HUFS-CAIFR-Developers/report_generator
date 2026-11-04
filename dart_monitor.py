@@ -1,8 +1,9 @@
 """서버 cron이 개장일 08~19시(KST)에 30분마다 실행하는 DART 전자공시 감시기 (docs/DEPLOYMENT.md).
 관심 종목(코스피200+코스닥150, data/index_universe.csv)의 공시 중 "주요 공시"
 (dart/major_keywords.txt 기준)만 골라 텔레그램으로 보낸다.
-휴장일에는 아무것도 하지 않는다. 이미 보낸 공시(rcept_no)는 dart_sent_ids.json에 남겨
-다시 보내지 않되, 전송이 실패한 건은 기록하지 않아 다음 실행 때 재시도한다."""
+휴장일에는 아무것도 하지 않는다. 이미 보낸 공시(rcept_no)는 보낼 때마다 바로 dart_sent_ids.json에 남겨
+(중간에 죽어도 보낸 건을 다시 보내지 않게) 다시 보내지 않되, 전송이 실패한 건은 기록하지 않아 다음 실행 때 재시도한다.
+실행마다 실행 기록(job dart_monitor)을 백엔드에 보낸다 (휴장일·감시 시간 밖은 보내지 않는다)."""
 import json
 import time
 from datetime import datetime
@@ -13,10 +14,13 @@ import config
 from dart.client import fetch_disclosures
 from dart.filters import is_major, load_keywords
 from dart.universe import load_universe
+from report.api_upload import post_run
 from report.telegram_notify import send_text
 
 _SENT_LOG_MAX_AGE_DAYS = 5
 _WEEKDAY_KO = ["월", "화", "수", "목", "금", "토", "일"]
+# 텔레그램 봇은 같은 채팅에 초당 1건 정도까지만 보낼 수 있어 메시지 사이에 쉰다
+_SEND_INTERVAL_SECONDS = 1
 
 
 def _is_krx_trading_day(date) -> bool:
@@ -64,15 +68,25 @@ def main():
         print("공시 감시 시간(08~19시)이 아닙니다. 건너뜁니다.")
         return
 
+    stats = {"scanned": 0, "matched": 0, "sent": 0, "failed_sends": 0}
+    try:
+        _scan(today, stats)
+    except Exception as e:
+        post_run("dart_monitor", "FAILED", today, step="scan", message=f"{type(e).__name__}: {e}", stats=stats)
+        raise
+    post_run("dart_monitor", "SUCCEEDED", today, stats=stats)
+
+
+def _scan(today: datetime, stats: dict):
     universe = load_universe()
     keywords = load_keywords()
     sent_log = _load_sent_log()
 
     date_str = today.strftime("%Y%m%d")
     disclosures = fetch_disclosures(date_str)
+    stats["scanned"] = len(disclosures)
     print(f"오늘 전체 공시 {len(disclosures)}건 조회")
 
-    sent_count = 0
     for row in disclosures:
         rcept_no = row["rcept_no"]
         if rcept_no in sent_log:
@@ -85,15 +99,21 @@ def main():
         if not is_major(row["report_nm"], keywords):
             continue
 
+        if stats["matched"]:
+            time.sleep(_SEND_INTERVAL_SECONDS)
+        stats["matched"] += 1
         message = _format_message(row, info["corp_name"], info["index"])
         if send_text(message):
             sent_log[rcept_no] = time.time()
-            sent_count += 1
+            _save_sent_log(sent_log)
+            stats["sent"] += 1
         else:
+            stats["failed_sends"] += 1
             print(f"전송 실패, 다음 실행 때 재시도: {info['corp_name']} {row['report_nm'].strip()}")
 
+    # 보낼 것이 없던 실행에도 오래된 기록을 정리한다
     _save_sent_log(sent_log)
-    print(f"신규 주요 공시 {sent_count}건 전송")
+    print(f"신규 주요 공시 {stats['sent']}건 전송")
 
 
 if __name__ == "__main__":
