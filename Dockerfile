@@ -14,5 +14,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
+# root가 아닌 사용자로 돈다. uid는 서버 ubuntu 사용자(1001)와 맞춰 output/ 마운트에 바로 쓴다
+RUN useradd -u 1001 -m app && chown -R app /app
+USER app
+
 # 결과물(output/)은 서버에 남기되 30일 지난 것은 지운다
 CMD ["sh", "-c", "find output -type f -mtime +30 -delete 2>/dev/null; exec python run_auto.py"]

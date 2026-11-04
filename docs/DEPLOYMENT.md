@@ -26,8 +26,14 @@
 | `OPENDART_API_KEY` | O | 기업 목록·공시 |
 | `REPORT_API_TOKEN` | O | 백엔드 `deploy/.env.app`의 `REPORT_GENERATOR_TOKEN`과 같은 값 |
 | `REPORT_API_URL` | | 기본값 `https://api.caifr.com/api/generator/reports` |
-| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | | 팀 채널 (카드+PDF) |
-| `TELEGRAM_DOCX_CHAT_ID` | | 비공개 채널 (docx 원본, 시작·실패 알림) |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_DOCX_CHAT_ID` | O | 비공개 채널 (docx 원본, 시작·실패 알림). 없으면 실패해도 알림이 오지 않는다 |
+| `TELEGRAM_CHAT_ID` | | 팀 채널 (카드+PDF). 설정했는데 전송에 실패하면 실패 알림 |
+
+배포 뒤 아래로 이름만 확인한다 (값은 출력하지 않는다).
+
+```bash
+ssh caifr-oracle 'cut -d= -f1 ~/report_generator/.env'
+```
 
 ## 배포
 

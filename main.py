@@ -97,15 +97,18 @@ def _build_report(article_title: str, article_summary: str, article_key_sentence
         f"\"{context['title']}\"\n\n"
         f"자세한 내용은 아래 첨부파일을 참고하세요."
     )
-    if send_report(pdf_path, message_text, card_path=card_path):
-        print("카드+PDF 전송 완료")
-    else:
-        print("카드+PDF 전송 건너뜀 (설정 없음 또는 실패)")
+    team_configured = bool(config.TELEGRAM_BOT_TOKEN and config.TELEGRAM_CHAT_ID)
+    team_sent = send_report(pdf_path, message_text, card_path=card_path)
+    print("카드+PDF 전송 완료" if team_sent else "카드+PDF 전송 건너뜀 (설정 없음 또는 실패)")
 
     # 텔레그램은 업로드 실패와 상관없이 받도록 먼저 보내고, 업로드 실패는 예외로 실패 알림을 보낸다
     print("사이트 업로드 중...")
     uploaded = post_report(pdf_path, card_path, context)
     print(f"사이트 업로드 완료: {uploaded.get('id', '')}")
+
+    # 설정했는데 팀 채널 전송만 실패했으면, 사이트 업로드는 마친 뒤 실패 알림으로 알린다
+    if team_configured and not team_sent:
+        raise RuntimeError("팀 텔레그램 채널로 카드·PDF를 보내지 못했습니다 (사이트 업로드는 완료).")
 
     return out_path, pdf_path
 

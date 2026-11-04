@@ -25,6 +25,8 @@ from analysis.text_utils import to_plain_text
 def post_report(pdf_path: Path, card_path: Path | None, context: dict, category: str = "daily") -> dict:
     if not config.REPORT_API_TOKEN:
         raise RuntimeError("REPORT_API_TOKEN이 없어 사이트에 올리지 못했습니다.")
+    if not config.REPORT_API_URL.startswith("https://"):
+        raise RuntimeError("REPORT_API_URL은 https 주소여야 합니다 (토큰이 평문으로 나가지 않게).")
 
     summary = to_plain_text(context["final_summary"])
     report = {
