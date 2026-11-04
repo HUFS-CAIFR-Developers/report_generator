@@ -4,10 +4,16 @@ from PIL import Image, ImageDraw, ImageFont
 
 import config
 
-_FONT_PATH = "/System/Library/Fonts/AppleSDGothicNeo.ttc"
-_IDX_REGULAR = 0
-_IDX_SEMIBOLD = 4
-_IDX_BOLD = 6
+# 굵기별 (글꼴 파일, ttc 안 번호). 맥은 애플 산돌고딕, 서버(Docker)는 나눔바른고딕 (fonts-nanum)
+_MAC_FONT = "/System/Library/Fonts/AppleSDGothicNeo.ttc"
+_NANUM_DIR = "/usr/share/fonts/truetype/nanum"
+if Path(_MAC_FONT).exists():
+    _FACE_REGULAR = (_MAC_FONT, 0)
+    _FACE_SEMIBOLD = (_MAC_FONT, 4)
+    _FACE_BOLD = (_MAC_FONT, 6)
+else:
+    _FACE_REGULAR = (f"{_NANUM_DIR}/NanumBarunGothic.ttf", 0)
+    _FACE_SEMIBOLD = _FACE_BOLD = (f"{_NANUM_DIR}/NanumBarunGothicBold.ttf", 0)
 
 _W = 720
 _BG = (13, 27, 42)
@@ -18,8 +24,8 @@ _DIVIDER = (40, 56, 74)
 _PAD = 48
 
 
-def _font(index: int, size: int) -> ImageFont.FreeTypeFont:
-    return ImageFont.truetype(_FONT_PATH, size, index=index)
+def _font(face: tuple[str, int], size: int) -> ImageFont.FreeTypeFont:
+    return ImageFont.truetype(face[0], size, index=face[1])
 
 
 def _wrap(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont, max_width: int) -> list[str]:
@@ -53,20 +59,20 @@ def generate_summary_card(context: dict, out_path: Path) -> Path:
     draw = ImageDraw.Draw(img)
 
     y = _PAD
-    label_font = _font(_IDX_SEMIBOLD, 22)
+    label_font = _font(_FACE_SEMIBOLD, 22)
     draw.text((_PAD, y), f"오늘의 시황 리포트  ·  {context.get('date', '')}", font=label_font, fill=_ACCENT)
     y += label_font.size + 28
 
-    title_font = _font(_IDX_BOLD, 40)
+    title_font = _font(_FACE_BOLD, 40)
     y = _draw_wrapped(draw, context.get("final_title", context.get("title", "")), title_font, _PAD, y, max_w, _WHITE, line_gap=6)
     y += 24
 
     draw.line([(_PAD, y), (_W - _PAD, y)], fill=_DIVIDER, width=2)
     y += 32
 
-    tag_font = _font(_IDX_SEMIBOLD, 22)
-    headline_font = _font(_IDX_BOLD, 26)
-    body_font = _font(_IDX_REGULAR, 22)
+    tag_font = _font(_FACE_SEMIBOLD, 22)
+    headline_font = _font(_FACE_BOLD, 26)
+    body_font = _font(_FACE_REGULAR, 22)
 
     for i in range(1, 4):
         corp_name = context.get(f"company{i}")
@@ -84,7 +90,7 @@ def generate_summary_card(context: dict, out_path: Path) -> Path:
         y = _draw_wrapped(draw, body, body_font, _PAD, y, max_w, _GRAY, line_gap=6)
         y += 32
 
-    footer_font = _font(_IDX_REGULAR, 18)
+    footer_font = _font(_FACE_REGULAR, 18)
     draw.text((_PAD, y), "자동 생성 · News Analyst Report", font=footer_font, fill=_GRAY)
     y += footer_font.size + _PAD
 
