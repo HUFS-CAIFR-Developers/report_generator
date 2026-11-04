@@ -1,4 +1,4 @@
-"""launchd가 30분마다 실행하는 DART 전자공시 감시기.
+"""서버 cron이 개장일 08~19시(KST)에 30분마다 실행하는 DART 전자공시 감시기 (docs/DEPLOYMENT.md).
 관심 종목(코스피200+코스닥150, data/index_universe.csv)의 공시 중 "주요 공시"
 (dart/major_keywords.txt 기준)만 골라 텔레그램으로 보낸다.
 휴장일에는 아무것도 하지 않는다. 이미 보낸 공시(rcept_no)는 dart_sent_ids.json에 남겨
