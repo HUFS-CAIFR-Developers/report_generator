@@ -5,6 +5,7 @@
 (중간에 죽어도 보낸 건을 다시 보내지 않게) 다시 보내지 않되, 전송이 실패한 건은 기록하지 않아 다음 실행 때 재시도한다.
 실행마다 실행 기록(job dart_monitor)을 백엔드에 보낸다 (휴장일·감시 시간 밖은 보내지 않는다)."""
 import json
+import os
 import time
 from datetime import datetime
 
@@ -37,7 +38,10 @@ def _save_sent_log(log: dict):
     cutoff = time.time() - _SENT_LOG_MAX_AGE_DAYS * 86400
     pruned = {rcept_no: sent_at for rcept_no, sent_at in log.items() if sent_at >= cutoff}
     config.DART_SENT_LOG.parent.mkdir(parents=True, exist_ok=True)
-    config.DART_SENT_LOG.write_text(json.dumps(pruned, ensure_ascii=False), encoding="utf-8")
+    # 알림마다 저장하므로 쓰는 도중 죽어도 기존 파일이 비지 않게 임시 파일에 쓰고 바꿔 끼운다
+    tmp = config.DART_SENT_LOG.with_suffix(".tmp")
+    tmp.write_text(json.dumps(pruned, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, config.DART_SENT_LOG)
 
 
 def _format_date_header(rcept_dt: str) -> str:
@@ -74,9 +78,9 @@ def main():
     except Exception as e:
         post_run("dart_monitor", "FAILED", today, step="scan", message=f"{type(e).__name__}: {e}", stats=stats)
         raise
-    # 보내지 못한 알림이 있으면 다음 실행에서 다시 보내지만, 관리 화면에서 보이도록 실패로 남긴다
+    # 보내지 못한 알림은 그날 남은 실행에서만 다시 시도한다(다음 날은 그날 공시만 본다). 관리 화면에서 보이도록 실패로 남긴다
     if stats["failed_sends"]:
-        post_run("dart_monitor", "FAILED", today, step="send", message=f"텔레그램 전송 실패 {stats['failed_sends']}건 (다음 실행에서 다시 보냄)", stats=stats)
+        post_run("dart_monitor", "FAILED", today, step="send", message=f"텔레그램 전송 실패 {stats['failed_sends']}건 (그날 남은 실행에서만 다시 시도)", stats=stats)
     else:
         post_run("dart_monitor", "SUCCEEDED", today, stats=stats)
 

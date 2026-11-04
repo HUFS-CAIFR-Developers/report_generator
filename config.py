@@ -48,7 +48,8 @@ KRX_MASTER_MAX_AGE_DAYS = 7
 # 판단 기준 키워드 목록 - 코드 안 건드리고 이 파일만 고치면 기준을 바꿀 수 있음.
 INDEX_UNIVERSE_CSV = BASE_DIR / "data" / "index_universe.csv"
 DART_MAJOR_KEYWORDS_FILE = BASE_DIR / "dart" / "major_keywords.txt"
-DART_SENT_LOG = BASE_DIR / "data" / "dart_sent_ids.json"
+# 서버에서는 폴더를 연결해 이 파일을 원자적으로 바꿔 쓴다 (docs/DEPLOYMENT.md)
+DART_SENT_LOG = Path(os.environ.get("DART_SENT_LOG") or BASE_DIR / "data" / "dart_sent_ids.json")
 
 TEMPLATE_PATH = BASE_DIR / "report" / "template.docx"
 

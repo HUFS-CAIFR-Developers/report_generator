@@ -62,6 +62,14 @@ def post_report(pdf_path: Path, card_path: Path | None, context: dict, category:
     return resp.json()
 
 
+def _redact(text: str) -> str:
+    """예외 문구에 섞일 수 있는 키·토큰(요청 주소의 crtfc_key 등)을 가린다."""
+    for secret in (config.OPENDART_API_KEY, config.OPENAI_API_KEY, config.TELEGRAM_BOT_TOKEN, config.REPORT_API_TOKEN):
+        if secret and len(secret) >= 8:  # 비어 있거나 짧은 값으로 엉뚱한 글자를 가리지 않게
+            text = text.replace(secret, "***")
+    return text
+
+
 def post_run(
     job: str,
     status: str,
@@ -86,7 +94,7 @@ def post_run(
             "started_at": started_at.astimezone().isoformat(),
             "finished_at": datetime.now().astimezone().isoformat(),
             "step": step,
-            "message": message[:1000] if message else None,
+            "message": _redact(message)[:1000] if message else None,
             "stats": stats,
             "usage": usage or [],
         }
