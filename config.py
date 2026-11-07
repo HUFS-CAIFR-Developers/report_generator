@@ -26,6 +26,15 @@ REPORT_AUTHOR = "제갈민찬"
 MODEL_LIGHT = "gpt-5.6-luna"     # 요약, 핵심 문장 추출, 제목 등 단순 작업
 MODEL_STANDARD = "gpt-5.6-terra"  # 기업 선정, 투자분석/기술적분석 본문 등 품질 중요 작업
 
+# 모델별 단가 (USD / 100만 토큰, 입력·출력). 실행 기록(POST /api/generator/runs)의 비용 계산에 쓴다.
+# 표에 없는 모델은 비용 0으로 기록하고 경고를 남긴다.
+# ponytail: 단가를 코드에 둔다. 모델을 바꾸거나 OpenAI 가격이 바뀌면 여기를 같이 고쳐야 한다
+# (2026-07-30 인하 가격 기준, 캐시 입력 할인은 반영하지 않아 실제보다 조금 높게 잡힌다).
+MODEL_PRICES_USD_PER_1M = {
+    "gpt-5.6-terra": (2.00, 12.00),
+    "gpt-5.6-luna": (0.20, 1.20),
+}
+
 # OpenAI 호출이 비정상적으로 오래 걸려서 자동실행이 멈춰버린 적 있음(2026-10-02).
 # 이 시간을 넘기면 예외를 던지도록 모든 OpenAI 클라이언트에 적용한다.
 OPENAI_TIMEOUT_SECONDS = 90
@@ -39,7 +48,8 @@ KRX_MASTER_MAX_AGE_DAYS = 7
 # 판단 기준 키워드 목록 - 코드 안 건드리고 이 파일만 고치면 기준을 바꿀 수 있음.
 INDEX_UNIVERSE_CSV = BASE_DIR / "data" / "index_universe.csv"
 DART_MAJOR_KEYWORDS_FILE = BASE_DIR / "dart" / "major_keywords.txt"
-DART_SENT_LOG = BASE_DIR / "data" / "dart_sent_ids.json"
+# 서버에서는 폴더를 연결해 이 파일을 원자적으로 바꿔 쓴다 (docs/DEPLOYMENT.md)
+DART_SENT_LOG = Path(os.environ.get("DART_SENT_LOG") or BASE_DIR / "data" / "dart_sent_ids.json")
 
 TEMPLATE_PATH = BASE_DIR / "report" / "template.docx"
 

@@ -22,10 +22,19 @@ from sources.article import fetch_article
 from sources.naver_ranking import fetch_economy_headlines
 from sources.stock import fetch_technical_data
 
+# 자동실행 기록(run_auto.py → POST /api/generator/runs)에 남길 현재 단계와 사이트 업로드 여부.
+# 실패·시간초과 때 어느 단계에서 멈췄는지 알 수 있게 단계마다 바꾼다
+RUN_STATE = {"step": None, "uploaded": False}
+
+
+def _step(name: str):
+    RUN_STATE["step"] = name
+
 
 def _build_report(article_title: str, article_summary: str, article_key_sentence: str):
     """기사 제목/요약/핵심문장이 주어지면 관련 기업 선정부터 문서 생성까지 나머지 전체를 처리한다.
     수동 실행(기사 1건)과 자동 실행(오늘의 시황) 양쪽에서 공유하는 본체."""
+    _step("company_pick")
     print("관련 기업 선정 중...")
     companies = pick_companies(_plain(article_summary))
     if not companies:
@@ -41,6 +50,7 @@ def _build_report(article_title: str, article_summary: str, article_key_sentence
     report_pieces = [article_summary]
 
     for i, company in enumerate(companies, start=1):
+        _step(f"company{i}_analysis")
         print(f"{i}. {company['corp_name']}({company['ticker']}) 분석 중...")
 
         content = write_investment_analysis(
@@ -65,6 +75,7 @@ def _build_report(article_title: str, article_summary: str, article_key_sentence
         report_pieces.append(content)
         report_pieces.append(tech_content)
 
+    _step("final_title")
     print("최종 제목/요약 생성 중...")
     full_text = "\n\n".join(_plain(p) for p in report_pieces)
     context["title"] = generate_report_title(full_text)
@@ -73,11 +84,13 @@ def _build_report(article_title: str, article_summary: str, article_key_sentence
     context["final_summary"] = final_summary
     context["date"] = datetime.now().strftime("%Y.%m.%d")
 
+    _step("build_doc")
     print("문서 생성 중...")
     out_path = build_report(context, chart_paths)
     date_dash = datetime.now().strftime("%Y-%m-%d")
 
     # PDF 변환·업로드가 실패해도 원본은 남도록 docx를 먼저 비공개 채널로 보낸다.
+    _step("send_docx")
     print("docx 원본 비공개 전송 중...")
     docx_message = f"📄 {date_dash} 원본 docx\n\"{context['title']}\""
     if send_docx_private(out_path, docx_message):
@@ -85,12 +98,15 @@ def _build_report(article_title: str, article_summary: str, article_key_sentence
     else:
         print("docx 비공개 전송 건너뜀 (설정 없음 또는 실패)")
 
+    _step("summary_card")
     print("요약 카드 이미지 생성 중...")
     card_path = generate_summary_card(context, config.OUTPUT_DIR / f"{out_path.stem}_card.png")
 
+    _step("export_pdf")
     print("PDF 변환 중...")
     pdf_path = export_pdf(out_path)
 
+    _step("send_telegram")
     print("텔레그램 전송 중 (카드+PDF)...")
     message_text = (
         f"📝 {date_dash} 시황분석 리포트\n\n"
@@ -102,12 +118,15 @@ def _build_report(article_title: str, article_summary: str, article_key_sentence
     print("카드+PDF 전송 완료" if team_sent else "카드+PDF 전송 건너뜀 (설정 없음 또는 실패)")
 
     # 텔레그램은 업로드 실패와 상관없이 받도록 먼저 보내고, 업로드 실패는 예외로 실패 알림을 보낸다
+    _step("upload")
     print("사이트 업로드 중...")
     uploaded = post_report(pdf_path, card_path, context)
+    RUN_STATE["uploaded"] = True
     print(f"사이트 업로드 완료: {uploaded.get('id', '')}")
 
     # 설정했는데 팀 채널 전송만 실패했으면, 사이트 업로드는 마친 뒤 실패 알림으로 알린다
     if team_configured and not team_sent:
+        _step("send_telegram")
         raise RuntimeError("팀 텔레그램 채널로 카드·PDF를 보내지 못했습니다 (사이트 업로드는 완료).")
 
     return out_path, pdf_path
@@ -127,16 +146,19 @@ def run(url: str):
 
 def run_auto():
     """자동 실행: 오늘 네이버 경제면 헤드라인 → 오늘의 시황 브리핑 → 리포트."""
+    _step("headlines")
     print("오늘의 경제 뉴스 헤드라인 수집 중...")
     headlines = fetch_economy_headlines()
     if not headlines:
         raise RuntimeError("경제면 헤드라인을 하나도 가져오지 못했습니다.")
     print(f"헤드라인 {len(headlines)}건 수집")
 
+    _step("market_topic")
     print("핵심 이슈 분석 중...")
     topic = identify_dominant_topic(headlines)
     print(f"오늘의 핵심 이슈: {topic['dominant_topic']}")
 
+    _step("market_briefing")
     print("오늘의 시황 브리핑 작성 중...")
     briefing = write_market_briefing(topic)
     briefing_key_sentence = extract_key_sentence(_plain(briefing))

@@ -1,12 +1,10 @@
 import json
 
-from openai import OpenAI
-
 import config
+from analysis import llm
 from analysis.prompt_loader import load_prompt
 from data.krx_master import load_krx_master, match_company
 
-_client = OpenAI(api_key=config.OPENAI_API_KEY, timeout=config.OPENAI_TIMEOUT_SECONDS)
 
 _SCHEMA = {
     "type": "object",
@@ -36,7 +34,7 @@ def _call_llm(content: str, exclude: list[str] | None = None) -> list[dict]:
     if exclude:
         exclude_clause = f"단, 다음 기업은 이미 검토했으니 제외하고 다른 기업으로 선정하라: {', '.join(exclude)}\n"
 
-    resp = _client.responses.create(
+    resp = llm.create(
         model=config.MODEL_STANDARD,
         max_output_tokens=2000,
         input=[{"role": "user", "content": _PROMPT.format(content=content, exclude_clause=exclude_clause)}],

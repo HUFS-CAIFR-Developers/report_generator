@@ -25,7 +25,7 @@
 | `OPENAI_API_KEY` | O | 분석·글쓰기 |
 | `OPENDART_API_KEY` | O | 기업 목록·공시 |
 | `REPORT_API_TOKEN` | O | 백엔드 `deploy/.env.app`의 `REPORT_GENERATOR_TOKEN`과 같은 값 |
-| `REPORT_API_URL` | | 기본값 `https://api.caifr.com/api/generator/reports` |
+| `REPORT_API_URL` | | 기본값 `https://api.caifr.com/api/generator/reports`. 실행 기록은 같은 서버의 `.../api/generator/runs`로 보낸다 (주소·토큰이 없으면 기록만 건너뛴다) |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_DOCX_CHAT_ID` | O | 비공개 채널 (docx 원본, 시작·실패 알림). 없으면 실패해도 알림이 오지 않는다 |
 | `TELEGRAM_CHAT_ID` | | 팀 채널 (카드+PDF). 설정했는데 전송에 실패하면 실패 알림 |
 
@@ -49,7 +49,7 @@ ssh caifr-oracle 'cd ~/report_generator && mkdir -p output logs && docker build 
 `crontab -e`에 한 줄. `0 0 * * 1-5` UTC = 평일 09:00 KST.
 
 ```cron
-0 0 * * 1-5 docker run --rm --name caifr-report-generator --env-file /home/ubuntu/report_generator/.env -v /home/ubuntu/report_generator/output:/app/output caifr-report-generator >> /home/ubuntu/report_generator/logs/auto.log 2>&1
+0 0 * * 1-5 docker run --rm --name caifr-report-generator --cpus 1 --memory 1g --env-file /home/ubuntu/report_generator/.env -v /home/ubuntu/report_generator/output:/app/output caifr-report-generator >> /home/ubuntu/report_generator/logs/auto.log 2>&1
 ```
 
 수동 실행은 같은 `docker run` 명령을 그대로 돌리면 된다 (휴장일에는 건너뛴다).
@@ -57,7 +57,7 @@ ssh caifr-oracle 'cd ~/report_generator && mkdir -p output logs && docker build 
 ## DART 공시 알림 (`dart_monitor.py`)
 
 같은 이미지로 개장일 08~19시(KST)에 30분마다 돈다. 관심 종목(코스피200·코스닥150)의 주요 공시만 팀 텔레그램 채널(`TELEGRAM_CHAT_ID`)로 보낸다.
-이미 보낸 공시 기록(`data/dart_sent_ids.json`)은 컨테이너가 지워져도 남도록 서버 파일 `~/report_generator/state/dart_sent_ids.json`을 연결한다. 처음 한 번 만든다.
+이미 보낸 공시 기록은 컨테이너가 지워져도 남도록 서버 폴더 `~/report_generator/state`를 `/app/state`로 연결하고 `DART_SENT_LOG=/app/state/dart_sent_ids.json`으로 가리킨다. 알림마다 임시 파일에 쓰고 바꿔 끼우므로(파일 하나만 연결하면 바꿔 끼울 수 없다) 폴더를 연결한다. 처음 한 번 만든다.
 
 ```bash
 ssh caifr-oracle 'mkdir -p ~/report_generator/state && cp -n ~/report_generator/data/dart_sent_ids.json ~/report_generator/state/'
@@ -66,6 +66,6 @@ ssh caifr-oracle 'mkdir -p ~/report_generator/state && cp -n ~/report_generator/
 cron (UTC). 일요일 23시 UTC가 월요일 08시 KST라 두 줄로 나눈다. 휴장일·시간 확인은 스크립트가 한 번 더 한다.
 
 ```cron
-*/30 23 * * 0-4 docker run --rm --name caifr-dart-monitor --env-file /home/ubuntu/report_generator/.env -v /home/ubuntu/report_generator/state/dart_sent_ids.json:/app/data/dart_sent_ids.json caifr-report-generator python dart_monitor.py >> /home/ubuntu/report_generator/logs/dart.log 2>&1
-*/30 0-10 * * 1-5 docker run --rm --name caifr-dart-monitor --env-file /home/ubuntu/report_generator/.env -v /home/ubuntu/report_generator/state/dart_sent_ids.json:/app/data/dart_sent_ids.json caifr-report-generator python dart_monitor.py >> /home/ubuntu/report_generator/logs/dart.log 2>&1
+*/30 23 * * 0-4 docker run --rm --name caifr-dart-monitor --cpus 0.5 --memory 512m --env-file /home/ubuntu/report_generator/.env -v /home/ubuntu/report_generator/state:/app/state -e DART_SENT_LOG=/app/state/dart_sent_ids.json caifr-report-generator python dart_monitor.py >> /home/ubuntu/report_generator/logs/dart.log 2>&1
+*/30 0-10 * * 1-5 docker run --rm --name caifr-dart-monitor --cpus 0.5 --memory 512m --env-file /home/ubuntu/report_generator/.env -v /home/ubuntu/report_generator/state:/app/state -e DART_SENT_LOG=/app/state/dart_sent_ids.json caifr-report-generator python dart_monitor.py >> /home/ubuntu/report_generator/logs/dart.log 2>&1
 ```
