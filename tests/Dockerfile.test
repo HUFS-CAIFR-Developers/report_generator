@@ -1,0 +1,15 @@
+# 테스트 전용 이미지 (리포트 + 쇼츠 의존성, 운영 이미지와 같은 정적 ffmpeg 6.0)
+# docker build -f tests/Dockerfile.test -t caifr-report-generator-test .
+# docker run --rm caifr-report-generator-test
+ARG FFMPEG_IMAGE=mwader/static-ffmpeg:6.0
+FROM ${FFMPEG_IMAGE} AS ffmpeg-source
+
+FROM python:3.12-slim-bookworm
+COPY --from=ffmpeg-source /ffmpeg /usr/local/bin/ffmpeg
+COPY --from=ffmpeg-source /ffprobe /usr/local/bin/ffprobe
+WORKDIR /app
+COPY requirements.txt requirements-dev.txt ./
+RUN pip install --no-cache-dir -r requirements-dev.txt
+COPY . .
+ENV TEST_FONTS_DIR=/app/fonts
+CMD ["python", "-m", "pytest", "-v", "tests"]

@@ -1,5 +1,11 @@
-# Oracle 서버(ARM)에서 하루 한 번 도는 리포트 생성기. PDF는 LibreOffice로 만든다
+# Oracle 서버(ARM)에서 하루 한 번 도는 리포트 생성기 + 쇼츠 영상 생성. PDF는 LibreOffice, 영상은 ffmpeg로 만든다
+# 쇼츠 쪽은 기존 n8n-ffmpeg 이미지와 같은 정적 ffmpeg 6.0을 쓴다 (amd64/arm64 모두 제공)
+ARG FFMPEG_IMAGE=mwader/static-ffmpeg:6.0
+FROM ${FFMPEG_IMAGE} AS ffmpeg-source
+
 FROM python:3.12-slim-bookworm
+COPY --from=ffmpeg-source /ffmpeg /usr/local/bin/ffmpeg
+COPY --from=ffmpeg-source /ffprobe /usr/local/bin/ffprobe
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libreoffice-writer-nogui fonts-nanum fonts-nanum-extra fontconfig tzdata \

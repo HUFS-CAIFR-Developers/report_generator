@@ -46,6 +46,14 @@ TEMPLATE_PATH = BASE_DIR / "report" / "template.docx"
 OUTPUT_DIR = BASE_DIR / "output"
 CHART_TMP_DIR = OUTPUT_DIR / ".charts_tmp"
 
+# 리포트가 끝나면 그 PDF로 쇼츠 영상을 만들어 YouTube에 올린다 (shorts_pipeline, docs/SHORTS.md).
+# 쇼츠 쪽 API 키(TYPECAST/HIGGSFIELD/YOUTUBE_*)와 세부 설정은 shorts_pipeline/config.py가 같은 .env에서 읽는다.
+SHORTS_ENABLED = os.environ.get("SHORTS_ENABLED", "true").lower() in ("1", "true", "yes")
+SHORTS_OUTPUT_DIR = Path(os.environ.get("SHORTS_OUTPUT_DIR", OUTPUT_DIR / "shorts"))
+SHORTS_FONTS_DIR = BASE_DIR / "fonts"
+# 영상 생성(Higgsfield)은 장면마다 수 분씩 걸려 리포트의 10분 제한과 따로 둔다.
+SHORTS_TIMEOUT_SECONDS = int(os.environ.get("SHORTS_TIMEOUT_SECONDS", "5400"))
+
 # 기술적 지표 파라미터 (원본 n8n 시트 수식의 정확한 값은 확인 불가 → 업계 표준값 채택)
 STOCK_HISTORY_RANGE = "3y"
 RSI_LENGTH = 14

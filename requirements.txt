@@ -8,3 +8,6 @@ matplotlib>=3.8.0
 docxtpl>=0.16.0
 rapidfuzz>=3.9.0
 exchange_calendars>=4.5
+# 쇼츠 영상 (shorts_pipeline) - ffmpeg/ffprobe 실행 파일도 필요 (Dockerfile 참고)
+pypdf>=4.0
+tzdata>=2024.1

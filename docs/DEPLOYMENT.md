@@ -2,6 +2,7 @@
 
 생성기는 백엔드와 같은 Oracle 서버(`caifr-oracle`, Ubuntu ARM)에서 Docker로 하루 한 번 돈다.
 한국거래소 개장일 아침 9시(KST)에 리포트를 만들어 텔레그램으로 보내고, 사이트(`api.caifr.com/api/generator/reports`)에 PDF·한 장 요약 카드와 함께 올린다.
+이어서 그 PDF로 쇼츠 영상을 만들어 YouTube에 올린다 (`docs/SHORTS.md`).
 휴장일이면 `run_auto.py`가 아무것도 하지 않고 끝난다.
 
 ## 흐름
@@ -12,6 +13,8 @@
 4. 팀 텔레그램 채널로 카드+PDF 전송
 5. 백엔드 업로드 (`report/api_upload.py`). 같은 날짜를 다시 올리면 덮어쓰고, 관리자가 붙인 숏츠 주소는 유지된다
 6. 어느 단계든 실패하거나 10분을 넘기면 비공개 채널로 실패 알림
+7. 쇼츠: PDF → 요약·대본 (OpenAI) → 장면별 음성 (Typecast) → 장면 영상 (Higgsfield) → 자막·1.5배속 (ffmpeg) → YouTube 업로드
+8. 쇼츠는 리포트와 따로 `SHORTS_TIMEOUT_SECONDS`(기본 90분)까지 기다린다. 완료되면 YouTube 주소를, 실패하면 재시도 명령을 비공개 채널로 보낸다. 쇼츠가 실패해도 리포트는 이미 나간 상태다
 
 ## 글꼴
 
@@ -28,6 +31,12 @@
 | `REPORT_API_URL` | | 기본값 `https://api.caifr.com/api/generator/reports` |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_DOCX_CHAT_ID` | O | 비공개 채널 (docx 원본, 시작·실패 알림). 없으면 실패해도 알림이 오지 않는다 |
 | `TELEGRAM_CHAT_ID` | | 팀 채널 (카드+PDF). 설정했는데 전송에 실패하면 실패 알림 |
+| `SHORTS_ENABLED` | | 기본 `true`. `false`면 쇼츠 단계를 건너뛴다 |
+| `TYPECAST_API_KEY` | 쇼츠 | 나레이션 음성 |
+| `HIGGSFIELD_API_KEY`, `HIGGSFIELD_API_SECRET` | 쇼츠 | 장면 영상 생성 |
+| `YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`, `YOUTUBE_REFRESH_TOKEN` | 쇼츠 | YouTube 업로드. `YOUTUBE_UPLOAD=false`면 필요 없음 |
+| `YOUTUBE_PRIVACY_STATUS` | | 비우면 공개 범위 없이 올린다 (n8n과 같음). `private`/`unlisted`/`public` |
+| `SHORTS_TIMEOUT_SECONDS` | | 쇼츠 단계 전체 제한 시간, 기본 `5400` |
 
 배포 뒤 아래로 이름만 확인한다 (값은 출력하지 않는다).
 
@@ -53,6 +62,13 @@ ssh caifr-oracle 'cd ~/report_generator && mkdir -p output logs && docker build 
 ```
 
 수동 실행은 같은 `docker run` 명령을 그대로 돌리면 된다 (휴장일에는 건너뛴다).
+쇼츠까지 돌면 컨테이너가 끝나는 데 수십 분 걸린다. 쇼츠 결과(mp4, 실행 로그)는 `output/shorts/`에 남는다.
+
+쇼츠만 실패했을 때 같은 리포트로 쇼츠만 다시 만들기:
+
+```bash
+docker run --rm --env-file /home/ubuntu/report_generator/.env -v /home/ubuntu/report_generator/output:/app/output caifr-report-generator python main.py --shorts-only output/<리포트 파일명>.pdf
+```
 
 ## DART 공시 알림 (`dart_monitor.py`)
 

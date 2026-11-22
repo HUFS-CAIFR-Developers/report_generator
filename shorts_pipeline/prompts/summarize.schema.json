@@ -1,0 +1,34 @@
+{
+  "type": "object",
+  "properties": {
+    "report_title": {
+      "type": "string"
+    },
+    "one_line_summary": {
+      "type": "string"
+    },
+    "key_points": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "important_facts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "shorts_angle": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "report_title",
+    "one_line_summary",
+    "key_points",
+    "important_facts",
+    "shorts_angle"
+  ],
+  "additionalProperties": false
+}

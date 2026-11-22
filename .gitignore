@@ -5,3 +5,4 @@ __pycache__/
 data/krx_master_cache.csv
 output/
 logs/
+.pytest_cache/

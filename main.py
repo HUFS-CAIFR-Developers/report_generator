@@ -1,5 +1,7 @@
+import argparse
 import sys
 from datetime import datetime
+from pathlib import Path
 
 import config
 from analysis.charts import generate_company_charts
@@ -17,6 +19,7 @@ from analysis.summary_card import generate_summary_card
 from analysis.text_utils import to_plain_text as _plain
 from report.api_upload import post_report
 from report.build_doc import build_report, export_pdf
+from report.shorts import make_report_shorts, shorts_url
 from report.telegram_notify import send_docx_private, send_report
 from sources.article import fetch_article
 from sources.naver_ranking import fetch_economy_headlines
@@ -144,19 +147,47 @@ def run_auto():
     return _build_report(topic["dominant_topic"][:40], briefing, briefing_key_sentence)
 
 
+def run_shorts(pdf_path: Path, upload: bool | None = None):
+    """리포트 PDF → 쇼츠 영상 → YouTube. 리포트 다음 단계로 이어서 돈다."""
+    print("쇼츠 영상 생성 중 (대본 → 음성 → 장면 영상 → 자막 → 업로드)...")
+    result = make_report_shorts(pdf_path, upload=upload)
+    print(f"쇼츠 영상: {result.video_path}")
+    url = shorts_url(result)
+    print(f"YouTube: {url}" if url else "YouTube 업로드 건너뜀")
+    return result
+
+
 def main():
-    if len(sys.argv) > 1 and sys.argv[1] == "--auto":
+    ap = argparse.ArgumentParser(description="뉴스 → 리서치 리포트 → 쇼츠 영상")
+    ap.add_argument("--auto", action="store_true", help="오늘의 시황으로 리포트 생성 (URL 입력 없음)")
+    ap.add_argument("--url", help="기사 URL (없으면 입력받음)")
+    ap.add_argument("--shorts-only", metavar="PDF", help="리포트는 건너뛰고 이미 만든 리포트 PDF로 쇼츠만 생성")
+    ap.add_argument("--no-shorts", action="store_true", help="리포트만 만들고 쇼츠는 만들지 않음")
+    ap.add_argument("--no-upload", action="store_true", help="쇼츠 영상만 만들고 YouTube에는 올리지 않음")
+    args = ap.parse_args()
+    upload = False if args.no_upload else None
+
+    if args.shorts_only:
+        run_shorts(Path(args.shorts_only), upload)
+        return
+
+    if args.auto:
         out_path, pdf_path = run_auto()
     else:
-        url = input("기사 URL을 입력하세요: ").strip()
+        url = (args.url or input("기사 URL을 입력하세요: ")).strip()
         if not url:
             print("URL이 입력되지 않았습니다.")
             sys.exit(1)
         out_path, pdf_path = run(url)
 
-    print(f"\n완료: {out_path}")
+    print(f"\n리포트 완료: {out_path}")
     if pdf_path:
         print(f"PDF: {pdf_path}")
+
+    if args.no_shorts or not config.SHORTS_ENABLED:
+        print("쇼츠 생성 건너뜀 (--no-shorts 또는 SHORTS_ENABLED=false)")
+        return
+    run_shorts(pdf_path, upload)
 
 
 if __name__ == "__main__":

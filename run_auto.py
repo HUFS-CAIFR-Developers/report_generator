@@ -1,4 +1,5 @@
 """서버 cron이 개장일 아침 9시(KST)에 실행하는 진입점 (DEPLOYMENT.md).
+리포트 생성·전송·사이트 업로드가 끝나면 이어서 그 PDF로 쇼츠 영상을 만들어 YouTube에 올린다.
 한국거래소(KRX) 개장일이 아니면(주말·공휴일) 아무것도 하지 않고 종료한다."""
 import os
 import socket
@@ -10,7 +11,9 @@ from datetime import datetime
 
 import exchange_calendars as xcals
 
+import config
 from main import run_auto
+from report.shorts import make_report_shorts, shorts_url
 from report.telegram_notify import send_text_private
 
 _NETWORK_WAIT_MAX_SECONDS = 120
@@ -62,20 +65,9 @@ def main():
     print("네트워크 연결 확인됨")
     send_text_private(f"🟢 {today.strftime('%Y-%m-%d %H:%M')} 자동실행 시작됨")
 
-    result = {}
+    result = _run_with_timeout(run_auto, _PIPELINE_TIMEOUT_SECONDS)
 
-    def _run():
-        try:
-            result["out_path"], result["pdf_path"] = run_auto()
-        except Exception as e:
-            result["error"] = e
-            result["traceback"] = traceback.format_exc()
-
-    worker = threading.Thread(target=_run, daemon=True)
-    worker.start()
-    worker.join(timeout=_PIPELINE_TIMEOUT_SECONDS)
-
-    if worker.is_alive():
+    if result is None:
         print(f"{_PIPELINE_TIMEOUT_SECONDS}초 넘게 응답이 없어 강제 종료합니다.")
         send_text_private(
             f"🚨 {today.strftime('%Y-%m-%d')} 자동실행 실패\n\n"
@@ -95,10 +87,73 @@ def main():
         )
         sys.exit(1)
 
-    print(f"완료: {result['out_path']}")
-    if result.get("pdf_path"):
-        print(f"PDF: {result['pdf_path']}")
+    out_path, pdf_path = result["value"]
+    print(f"리포트 완료: {out_path}")
+    print(f"PDF: {pdf_path}")
+
+    _run_shorts_step(today, pdf_path)
+
+
+def _run_with_timeout(fn, timeout_seconds):
+    """fn()을 별도 스레드에서 돌린다. 시간 안에 끝나면 {"value": ...} 또는 {"error", "traceback"},
+    시간을 넘기면 None을 돌려준다 (멈춘 스레드는 호출한 쪽이 os._exit로 정리한다)."""
+    result = {}
+
+    def _run():
+        try:
+            result["value"] = fn()
+        except Exception as e:
+            result["error"] = e
+            result["traceback"] = traceback.format_exc()
+
+    worker = threading.Thread(target=_run, daemon=True)
+    worker.start()
+    worker.join(timeout=timeout_seconds)
+    return None if worker.is_alive() else result
+
+
+def _run_shorts_step(today, pdf_path):
+    """리포트(사이트 업로드까지)가 끝난 뒤 이어서 쇼츠 영상을 만들어 YouTube에 올린다.
+    리포트는 이미 나갔으므로 여기서 실패해도 리포트에는 영향이 없고, 쇼츠 실패 알림만 따로 보낸다."""
+    if not config.SHORTS_ENABLED:
+        print("SHORTS_ENABLED=false - 쇼츠 생성 건너뜀")
+        return
+
+    print("쇼츠 영상 생성 시작...")
+    date = today.strftime("%Y-%m-%d")
+    hints = (
+        "리포트는 정상 완료됐습니다. 쇼츠만 다시 만들려면:\n"
+        f"python main.py --shorts-only output/{pdf_path.name}\n"
+        f"쇼츠 실행 로그: output/shorts/runs/{pdf_path.stem}/run.log"
+    )
+    result = _run_with_timeout(lambda: make_report_shorts(pdf_path), config.SHORTS_TIMEOUT_SECONDS)
+
+    if result is None:
+        print(f"쇼츠 생성이 {config.SHORTS_TIMEOUT_SECONDS}초를 넘겨 강제 종료합니다.")
+        send_text_private(
+            f"🚨 {date} 쇼츠 생성 실패\n\n"
+            f"{config.SHORTS_TIMEOUT_SECONDS // 60}분 넘게 끝나지 않아 강제 종료했습니다.\n\n{hints}"
+        )
+        os._exit(1)
+
+    if "error" in result:
+        print("쇼츠 생성 중 오류 발생:")
+        print(result["traceback"])
+        e = result["error"]
+        send_text_private(f"🚨 {date} 쇼츠 생성 실패\n\n{type(e).__name__}: {e}\n\n{hints}")
+        sys.exit(1)
+
+    video = result["value"]
+    url = shorts_url(video)
+    print(f"쇼츠 완료: {video.video_path}" + (f" / {url}" if url else " (YouTube 업로드 안 함)"))
+    skipped = f"\n제외된 장면: {sorted(video.scenes_skipped)}" if video.scenes_skipped else ""
+    send_text_private(
+        f"🎬 {date} 쇼츠 완료\n\n\"{video.video_title}\"\n"
+        f"{url or 'YouTube 업로드는 꺼져 있습니다 (YOUTUBE_UPLOAD=false).'}\n"
+        f"장면 {len(video.scenes_used)}/{video.scenes_total} 사용{skipped}"
+    )
 
 
 if __name__ == "__main__":
     main()
+
