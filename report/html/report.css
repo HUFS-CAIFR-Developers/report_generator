@@ -162,8 +162,9 @@ h1, h2, h3 { margin: 0; }
   margin: 0 0 6mm;
 }
 
-/* 기술적 분석: 목록 줄바꿈을 그대로 살린다 */
-.tech .main p { white-space: pre-line; margin-bottom: 1.2em; }
+/* 문단 안 줄바꿈(기술적 분석 목록 등)을 그대로 살린다 */
+.main p { white-space: pre-line; }
+.tech .main p { margin-bottom: 1.2em; }
 
 /* ── 그림 ─────────────────────────────────────────────── */
 .figure {

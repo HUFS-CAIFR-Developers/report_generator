@@ -45,11 +45,11 @@ def _paras(text: str) -> Markup:
 
 def _companies(context: dict, chart_paths: dict[str, Path]) -> list[dict]:
     companies = []
-    for i in (1, 2, 3):
-        if not context.get(f"company{i}"):
-            continue
+    picked = [i for i in (1, 2, 3) if context.get(f"company{i}")]
+    for i in picked:
+        # 그림 번호: 일봉 차트(종목 수만큼) 다음부터 종목마다 기술 차트 6개
         charts = [
-            {"no": 3 + (i - 1) * 6 + n, "label": label, "src": Path(chart_paths[f"chart{i}_tech_{key}"]).as_uri()}
+            {"no": len(picked) + (i - 1) * 6 + n, "label": label, "src": Path(chart_paths[f"chart{i}_tech_{key}"]).as_uri()}
             for n, (key, label) in enumerate(TECH_CHARTS, start=1)
         ]
         companies.append({
@@ -81,6 +81,7 @@ def _chrome() -> str:
 
 
 def export_pdf(context: dict, chart_paths: dict[str, Path], pdf_path: Path) -> Path:
+    pdf_path.unlink(missing_ok=True)  # 같은 이름의 예전 PDF가 결과로 잘못 쓰이지 않게 한다
     with tempfile.TemporaryDirectory() as tmp:
         html_path = Path(tmp) / "report.html"
         html_path.write_text(render_html(context, chart_paths), encoding="utf-8")
