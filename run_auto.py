@@ -102,7 +102,11 @@ def main():
             f"{_PIPELINE_TIMEOUT_SECONDS // 60}분 넘게 멈춰있어 강제 종료했습니다.\n"
             f"리포트가 생성되지 않았습니다. 서버 로그(~/report_generator/logs/auto.log) 확인이 필요합니다."
         )
-        _post_run("FAILED", today, RUN_STATE["step"], f"{_PIPELINE_TIMEOUT_SECONDS}초 넘게 멈춰 강제 종료했습니다.")
+        # 멈춘 스레드는 멈출 수 없어 기록하는 사이에도 업로드가 끝날 수 있다. 그래서 업로드 여부·사용량은 이 시점의 값이라고 적는다
+        _post_run(
+            "FAILED", today, RUN_STATE["step"],
+            f"{_PIPELINE_TIMEOUT_SECONDS}초 넘게 멈춰 강제 종료했습니다. 업로드 여부·사용량은 강제 종료 시점 값입니다.",
+        )
         os._exit(1)  # 멈춘 백그라운드 스레드(네트워크 호출 등)까지 통째로 강제 종료
 
     if "error" in result:
