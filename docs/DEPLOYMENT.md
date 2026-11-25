@@ -8,15 +8,16 @@
 
 1. 네이버 경제면 헤드라인 → 오늘의 시황 → 관련 기업 3개 분석 (OpenAI)
 2. `report/template.docx`를 채워 docx 생성 → 비공개 텔레그램 채널로 원본 전송
-3. 한 장 요약 카드(PNG), LibreOffice로 PDF 변환
+3. 한 장 요약 카드(PNG), HTML 템플릿(`report/html/`)을 Chromium으로 인쇄해 PDF 생성
 4. 팀 텔레그램 채널로 카드+PDF 전송
 5. 백엔드 업로드 (`report/api_upload.py`). 같은 날짜를 다시 올리면 덮어쓰고, 관리자가 붙인 숏츠 주소는 유지된다
 6. 어느 단계든 실패하거나 10분을 넘기면 비공개 채널로 실패 알림
 
 ## 글꼴
 
-템플릿은 `나눔바른고딕`과 `맑은 고딕`을 쓴다. 이미지에 `fonts-nanum`을 넣고, 윈도우 전용인 맑은 고딕은 `docker/fonts.conf`에서 나눔바른고딕으로 대신한다.
-요약 카드도 서버에서는 나눔바른고딕으로 그린다 (`analysis/summary_card.py`).
+PDF는 `report/html/fonts/`에 함께 둔 Pretendard(SIL OFL, `OFL.txt`)만 쓴다. 서버에 설치된 글꼴에 기대지 않아 PC와 서버에서 같은 모양이 나온다.
+PDF 모양(표지·2단 본문·차트 배치·쪽 나누기)은 `report/html/template.html`과 `report.css`에서 고친다. `report/template.docx`는 비공개 채널로 보내는 docx 원본에만 쓴다.
+요약 카드는 서버에서 나눔바른고딕(`fonts-nanum`)으로 그린다 (`analysis/summary_card.py`).
 
 ## 환경 변수 (`~/report_generator/.env`, 권한 600)
 

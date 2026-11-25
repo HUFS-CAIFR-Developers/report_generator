@@ -1,6 +1,5 @@
 import io
 import re
-import subprocess
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -71,16 +70,3 @@ def build_report(context: dict, chart_paths: dict[str, Path]) -> Path:
     doc.save(str(out_path))
     return out_path
 
-
-def export_pdf(docx_path: Path) -> Path:
-    """생성된 .docx를 같은 폴더에 같은 이름의 .pdf로 내보낸다 (LibreOffice headless).
-    서버(Docker)에는 템플릿 글꼴(나눔바른고딕, 맑은 고딕→나눔바른고딕 대체)을 넣어 두었다 (Dockerfile 참고).
-    PDF는 사이트에 올리는 결과물이라 실패하면 예외를 던져 자동실행 실패 알림으로 이어지게 한다."""
-    pdf_path = docx_path.with_suffix(".pdf")
-    subprocess.run(
-        ["soffice", "--headless", "--convert-to", "pdf", "--outdir", str(docx_path.parent), str(docx_path)],
-        check=True, capture_output=True, timeout=180,
-    )
-    if not pdf_path.exists():
-        raise RuntimeError(f"PDF 변환 결과가 없습니다: {pdf_path}")
-    return pdf_path
