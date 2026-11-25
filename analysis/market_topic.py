@@ -3,7 +3,7 @@ import json
 import config
 from analysis import llm
 from analysis.prompt_loader import load_prompt
-from analysis.text_utils import strip_markdown_heading, to_word_paragraphs
+from analysis.text_utils import strip_markdown_heading, to_paragraphs
 
 
 _NO_MARKDOWN_RULE = (
@@ -70,4 +70,4 @@ def write_market_briefing(topic: dict) -> str:
             ),
         }],
     )
-    return to_word_paragraphs(_text(resp))
+    return to_paragraphs(_text(resp))

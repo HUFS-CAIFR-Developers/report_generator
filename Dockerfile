@@ -1,14 +1,13 @@
-# Oracle 서버(ARM)에서 하루 한 번 도는 리포트 생성기. PDF는 LibreOffice로 만든다
+# Oracle 서버(ARM)에서 하루 한 번 도는 리포트 생성기. PDF는 HTML 템플릿을 Chromium으로 인쇄해 만든다
 FROM python:3.12-slim-bookworm
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libreoffice-writer-nogui fonts-nanum fonts-nanum-extra fontconfig tzdata \
+    && apt-get install -y --no-install-recommends chromium fonts-nanum fontconfig tzdata \
     && rm -rf /var/lib/apt/lists/*
-COPY docker/fonts.conf /etc/fonts/local.conf
 RUN fc-cache -f
 
 # 리포트 날짜·개장일 판단이 datetime.now() 기준이라 한국 시간으로 둔다
-ENV TZ=Asia/Seoul PYTHONUNBUFFERED=1
+ENV TZ=Asia/Seoul PYTHONUNBUFFERED=1 CHROME_BIN=/usr/bin/chromium
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

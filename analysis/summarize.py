@@ -1,7 +1,7 @@
 import config
 from analysis import llm
 from analysis.prompt_loader import load_prompt
-from analysis.text_utils import strip_markdown_heading, to_word_paragraphs
+from analysis.text_utils import strip_markdown_heading, to_paragraphs
 
 
 def _text(resp) -> str:
@@ -20,7 +20,7 @@ def summarize_article(content: str) -> str:
         max_output_tokens=2000,
         input=[{"role": "user", "content": _SUMMARY_PROMPT.format(content=content, no_markdown=_NO_MARKDOWN_RULE)}],
     )
-    return to_word_paragraphs(_text(resp))
+    return to_paragraphs(_text(resp))
 
 
 def extract_key_sentence(text: str) -> str:

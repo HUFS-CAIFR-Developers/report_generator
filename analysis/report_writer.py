@@ -5,7 +5,7 @@ import pandas as pd
 import config
 from analysis import llm
 from analysis.prompt_loader import load_prompt
-from analysis.text_utils import strip_markdown_heading, to_word_paragraphs
+from analysis.text_utils import strip_markdown_heading, to_paragraphs
 
 
 def _text(resp) -> str:
@@ -57,7 +57,7 @@ def write_investment_analysis(corp_name: str, ticker: str, reason: str, article_
             ),
         }],
     )
-    return to_word_paragraphs(_text(resp))
+    return to_paragraphs(_text(resp))
 
 
 def write_technical_analysis(corp_name: str, ticker: str, technical_data: pd.DataFrame) -> str:
@@ -73,7 +73,7 @@ def write_technical_analysis(corp_name: str, ticker: str, technical_data: pd.Dat
             ),
         }],
     )
-    return to_word_paragraphs(_text(resp))
+    return to_paragraphs(_text(resp))
 
 
 def one_sentence_conclusion(text: str) -> str:

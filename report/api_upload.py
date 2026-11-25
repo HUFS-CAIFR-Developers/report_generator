@@ -22,7 +22,6 @@ from pathlib import Path
 import requests
 
 import config
-from analysis.text_utils import to_plain_text
 
 
 def post_report(pdf_path: Path, card_path: Path | None, context: dict, category: str = "daily") -> dict:
@@ -31,7 +30,7 @@ def post_report(pdf_path: Path, card_path: Path | None, context: dict, category:
     if not config.REPORT_API_URL.startswith("https://"):
         raise RuntimeError("REPORT_API_URL은 https 주소여야 합니다 (토큰이 평문으로 나가지 않게).")
 
-    summary = to_plain_text(context["final_summary"])
+    summary = context["final_summary"]
     report = {
         "date": datetime.now().strftime("%Y-%m-%d"),
         "category": category,
@@ -39,8 +38,8 @@ def post_report(pdf_path: Path, card_path: Path | None, context: dict, category:
         "title": context["final_title"],
         "desc": summary,
         "summary": summary,
-        "highlights": [to_plain_text(context["article_summary1"])],
-        "body": f"{context['article_title']}\n\n{to_plain_text(context['article_content'])}",
+        "highlights": [context["article_summary1"]],
+        "body": f"{context['article_title']}\n\n{context['article_content']}",
         "published": True,
     }
     files = {
