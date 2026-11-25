@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>{{ date }} {{ title }}</title>
+<link rel="stylesheet" href="report.css">
+</head>
+<body>
+
+{# ── 1쪽: 표지 ─────────────────────────────────────────── #}
+<header class="cover">
+  <div class="cover-top">
+    <div class="cover-mark"></div>
+    <div class="cover-heading">
+      <p class="cover-kicker">News analysis Report l {{ date }}</p>
+      <h1 class="cover-title">{{ title }}</h1>
+    </div>
+    <img class="cover-logo" src="assets/logo.jpg" alt="CAIFR">
+  </div>
+
+  <section class="cover-band">
+    <h2 class="final-title">{{ final_title }}</h2>
+    <div class="cover-grid">
+      <p class="final-summary">{{ final_summary }}</p>
+      <address class="author">
+        한국외국어대학교<br>
+        인공지능기반 금융연구센터<br>
+        caifr.com<br>
+        hufscaifr@gmail.com
+      </address>
+    </div>
+  </section>
+</header>
+
+<section class="article split">
+  <div class="main">
+    <h3 class="section-title">{{ article_title }}</h3>
+    {{ article_content | paras }}
+  </div>
+  <aside class="side">{{ article_summary1 }}</aside>
+</section>
+
+{# ── 종목별 기본 분석 ──────────────────────────────────── #}
+{% for c in companies %}
+<section class="company split{% if loop.first %} page-start{% endif %}">
+  <aside class="side">{{ c.summary }}</aside>
+  <div class="main">
+    <h3 class="section-title">{{ c.name }} - {{ c.ticker }}</h3>
+    {{ c.content | paras }}
+  </div>
+</section>
+<figure class="figure chart-end">
+  <figcaption class="fig-caption">그림 {{ loop.index }}. {{ c.name }}의 최근 3년 일봉데이터 차트</figcaption>
+  <img class="fig-main" src="{{ c.chart }}" alt="">
+  <p class="fig-source">자료: 자체제작</p>
+</figure>
+{% endfor %}
+
+{# ── 종목별 기술적 분석 ────────────────────────────────── #}
+{% for c in companies %}
+<section class="company split tech{% if loop.first %} page-start{% endif %}">
+  <aside class="side">{{ c.tec_summary }}</aside>
+  <div class="main">
+    <h3 class="section-title">{{ c.name }} - {{ c.ticker }} 기술적 분석 기반 단기 전망</h3>
+    {{ c.tec_content | paras }}
+  </div>
+</section>
+<div class="tech-charts chart-end">
+  {% for row in c.tech_rows %}
+  <figure class="figure pair">
+    {% for chart in row %}
+    <div class="pair-cell">
+      <figcaption class="fig-caption">그림 {{ chart.no }}. {{ c.name }}의 {{ chart.label }}</figcaption>
+    </div>
+    {% endfor %}
+    {% for chart in row %}
+    <img class="fig-half" src="{{ chart.src }}" alt="">
+    {% endfor %}
+    <p class="fig-source">자료: 자체제작</p>
+  </figure>
+  {% endfor %}
+</div>
+{% endfor %}
+
+{# ── 고지 ─────────────────────────────────────────────── #}
+<section class="notice">
+  <h2>Notice</h2>
+  <p>본 보고서는 한국외국어대학교 인공지능기반금융연구센터 CAIFR의 자동화 프로그램 결과를 토대로 한 분석 &amp; 투자보고서 입니다. 보고서에 사용된 자료들은 각종 LLM을 활용하여 정보를 정리하여 만든 보고서이나, 그 정확성이나 완전성을 보장할 수 없으므로 투자자 자신의 판단과 책임 하에 종목 선택, 투자 시기 등의 의사 결정을 내리시길 바랍니다. 해당 보고서는 어떠한 경우에도 법적 책임소재의 증빙자료로 사용될 수 없으며 지적재산권은 한국외국어대학교 인공지능기반금융연구센터 CAIFR에 있음을 알립니다.</p>
+</section>
+
+</body>
+</html>

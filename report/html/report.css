@@ -1,0 +1,214 @@
+/* CAIFR 뉴스 분석 리포트 (A4 인쇄용). 크롬 headless의 PDF 인쇄로 만든다 (build_html.py). */
+
+/* 글꼴: 저장소에 함께 둔 Pretendard(SIL OFL 1.1)만 쓴다. PC에 설치된 글꼴에 기대지 않아 서버·PC 어디서 만들어도 같다.
+   가변 글꼴은 크롬이 그림(Type3)으로 넣어 PDF에서 글자 복사·검색이 안 되므로 굵기별 파일을 쓴다. */
+@font-face { font-family: "Pretendard"; font-weight: 400; src: url("fonts/Pretendard-Regular.otf") format("opentype"); }
+@font-face { font-family: "Pretendard"; font-weight: 600; src: url("fonts/Pretendard-SemiBold.otf") format("opentype"); }
+@font-face { font-family: "Pretendard"; font-weight: 700; src: url("fonts/Pretendard-Bold.otf") format("opentype"); }
+@font-face { font-family: "Pretendard"; font-weight: 800; src: url("fonts/Pretendard-ExtraBold.otf") format("opentype"); }
+
+:root {
+  --green-dark: #1f5a24;
+  --green: #3a7d22;
+  --green-text: #4a8a2a;
+  --green-band: #f1f7ec;
+  --green-stripe: #a9c57a;
+  --yellow-stripe: #eee12e;
+  --caption-bg: #9dc08b;
+  --gray-bar: #e6e6e6;
+  --ink: #111;
+  --body-size: 11pt;
+  --body-leading: 1.6;
+  --margin-x: 15mm;
+}
+
+/* 좌우 여백은 0으로 두고 body 안쪽 여백으로 준다 (표지 띠를 종이 끝까지 채우려고). */
+@page {
+  size: A4;
+  margin: 24mm 0 18mm;
+
+  /* 2쪽부터 머리말: 초록 탭(12~54mm) + 회색 띠(54~183mm), 종이 위에서 13~17mm 높이 */
+  @top-left {
+    content: "News analysis Report";
+    width: 183mm;
+    vertical-align: bottom;
+    padding: 0 0 7.6mm 15.5mm;
+    color: #fff;
+    font: 700 9pt "Pretendard", sans-serif;
+    /* 초록 탭 + 회색 띠. 여백 상자에서는 :root 변수가 안 먹어 색을 직접 쓴다 */
+    background:
+      linear-gradient(#3a7d22, #3a7d22) 12mm calc(100% - 7mm) / 42mm 4.2mm no-repeat,
+      linear-gradient(#e6e6e6, #e6e6e6) 54mm calc(100% - 7mm) / 129mm 4.2mm no-repeat;
+  }
+  @bottom-right {
+    content: counter(page);
+    width: 30mm;
+    vertical-align: top;
+    text-align: right;
+    padding: 2mm 15mm 0 0;
+    font: 10pt "Pretendard", sans-serif;
+  }
+}
+
+@page :first {
+  margin-top: 0;
+  @top-left { content: none; background: none; }
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+body {
+  margin: 0;
+  padding: 0 var(--margin-x);
+  color: var(--ink);
+  font-family: "Pretendard", sans-serif;
+  font-size: var(--body-size);
+  line-height: var(--body-leading);
+  word-break: keep-all;          /* 한국어 단어 중간에서 줄을 바꾸지 않는다 */
+  overflow-wrap: anywhere;
+}
+
+p { margin: 0 0 1.65em; }
+h1, h2, h3 { margin: 0; }
+
+/* ── 표지 ─────────────────────────────────────────────── */
+.cover { margin: 0 calc(-1 * var(--margin-x)); }
+
+.cover-top {
+  display: grid;
+  grid-template-columns: 15mm 1fr 40mm;
+  align-items: start;
+  padding: 11mm var(--margin-x) 0 0;
+  height: 47mm;
+}
+.cover-mark { height: 11mm; background: #dcdcdc; margin-top: 0; }
+.cover-heading { padding-left: 0; }
+.cover-kicker {
+  margin: 0;
+  padding: 1mm 0 0.6mm 2mm;
+  width: 130mm;
+  font-size: 9pt;
+  line-height: 1.4;
+  border-bottom: 0.8mm solid var(--green-dark);
+}
+.cover-title {
+  padding: 3mm 0 0 2mm;
+  font: 800 25pt/1.2 "Pretendard", sans-serif;
+  letter-spacing: -0.5pt;
+}
+.cover-logo { width: 30mm; margin: 2mm 0 0 auto; display: block; }
+
+.cover-band {
+  background: var(--green-band);
+  border-top: 2.6mm solid var(--green-stripe);
+  border-image: linear-gradient(to right, var(--green-stripe) 76%, var(--yellow-stripe) 76%) 1;
+  border-width: 2.6mm 0 0;
+  border-style: solid;
+  padding: 7mm var(--margin-x) 7mm calc(var(--margin-x) + 0.3mm);
+}
+.final-title {
+  color: var(--green);
+  font-size: 22pt;
+  font-weight: 800;
+  line-height: 1.3;
+  margin: 0 0 4mm 0;
+}
+.cover-grid {
+  display: grid;
+  grid-template-columns: 1fr 52mm;
+  gap: 8mm;
+  align-items: center;
+}
+.final-summary {
+  margin: 0;
+  padding: 3mm 3.5mm;
+  border: 0.35mm solid #222;
+  font-weight: 700;
+  font-size: 10.5pt;
+  line-height: 1.75;
+}
+.author {
+  font-style: normal;
+  font-weight: 700;
+  font-size: 9pt;
+  line-height: 1.75;
+  padding: 5mm 0 5mm 4mm;
+  border-top: 0.5mm solid #c8c8c8;
+  border-bottom: 0.5mm solid #c8c8c8;
+}
+
+/* ── 본문 2단 (본문 + 옆 요약) ─────────────────────────── */
+.split { display: grid; column-gap: 12mm; margin-top: 10mm; }
+.article.split { grid-template-columns: 1fr 44mm; }
+.company.split { grid-template-columns: 32mm 1fr; }
+.page-start { break-before: page; page-break-before: always; }
+.company.split.tech { margin-top: 4mm; }
+
+.side {
+  font-weight: 700;
+  font-size: 10.5pt;
+  line-height: 1.75;
+  align-self: start;
+  margin-top: 30mm;              /* 정상본처럼 본문 첫 문단 높이쯤에 둔다 */
+}
+.company .side { margin-top: 26mm; }
+
+.section-title {
+  color: var(--green-text);
+  font-size: 12.5pt;
+  font-weight: 800;
+  margin: 0 0 6mm;
+}
+
+/* 문단 안 줄바꿈(기술적 분석 목록 등)을 그대로 살린다 */
+.main p { white-space: pre-line; }
+.tech .main p { margin-bottom: 1.2em; }
+
+/* ── 그림 ─────────────────────────────────────────────── */
+.figure {
+  margin: 8mm 0 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.fig-caption {
+  background: var(--caption-bg);
+  border-top: 0.45mm solid var(--green);
+  border-bottom: 0.45mm solid var(--green);
+  padding: 1.2mm 3mm;
+  font-size: 10pt;
+  line-height: 1.5;
+}
+.fig-main { display: block; width: 170mm; margin: 2mm auto 0; }
+.fig-source {
+  margin: 0;
+  padding: 0.6mm 3mm 0;
+  border-top: 0.3mm solid var(--green);
+  font-size: 8.5pt;
+  line-height: 1.6;
+}
+
+.tech-charts { break-before: page; page-break-before: always; }
+/* 차트가 끝나면 다음 내용은 새 쪽에서 시작한다 */
+.chart-end { break-after: page; page-break-after: always; }
+.chart-end .pair:last-child { margin-bottom: 0; }
+.pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 7mm;
+}
+.pair-cell .fig-caption { height: 100%; }
+.fig-half { display: block; width: 84mm; margin: 1.5mm auto; }
+.pair .fig-source { grid-column: 1 / -1; }
+
+/* ── 고지 ─────────────────────────────────────────────── */
+.notice {
+  break-before: page;
+  page-break-before: always;
+  margin-top: 8mm;
+  border: 0.3mm solid #333;
+  padding: 3mm 4mm 4mm;
+}
+.notice h2 { font-size: 18pt; font-weight: 700; margin-bottom: 6mm; }
+.notice p { margin: 0; font-size: 10pt; line-height: 1.75; }

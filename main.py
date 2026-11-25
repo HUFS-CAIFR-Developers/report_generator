@@ -16,7 +16,8 @@ from analysis.summarize import extract_key_sentence, summarize_article
 from analysis.summary_card import generate_summary_card
 from analysis.text_utils import to_plain_text as _plain
 from report.api_upload import post_report
-from report.build_doc import build_report, export_pdf
+from report.build_doc import build_report
+from report.html.build_html import export_pdf
 from report.telegram_notify import send_docx_private, send_report
 from sources.article import fetch_article
 from sources.naver_ranking import fetch_economy_headlines
@@ -89,7 +90,7 @@ def _build_report(article_title: str, article_summary: str, article_key_sentence
     card_path = generate_summary_card(context, config.OUTPUT_DIR / f"{out_path.stem}_card.png")
 
     print("PDF 변환 중...")
-    pdf_path = export_pdf(out_path)
+    pdf_path = export_pdf(context, chart_paths, out_path.with_suffix(".pdf"))
 
     print("텔레그램 전송 중 (카드+PDF)...")
     message_text = (
