@@ -4,7 +4,7 @@ from openai import OpenAI
 
 import config
 from analysis.prompt_loader import load_prompt
-from analysis.text_utils import strip_markdown_heading, to_word_paragraphs
+from analysis.text_utils import strip_markdown_heading, to_paragraphs
 
 _client = OpenAI(api_key=config.OPENAI_API_KEY, timeout=config.OPENAI_TIMEOUT_SECONDS)
 
@@ -72,4 +72,4 @@ def write_market_briefing(topic: dict) -> str:
             ),
         }],
     )
-    return to_word_paragraphs(_text(resp))
+    return to_paragraphs(_text(resp))

@@ -66,7 +66,7 @@ def main():
 
     def _run():
         try:
-            result["out_path"], result["pdf_path"] = run_auto()
+            result["pdf_path"] = run_auto()
         except Exception as e:
             result["error"] = e
             result["traceback"] = traceback.format_exc()
@@ -95,9 +95,7 @@ def main():
         )
         sys.exit(1)
 
-    print(f"완료: {result['out_path']}")
-    if result.get("pdf_path"):
-        print(f"PDF: {result['pdf_path']}")
+    print(f"완료: {result['pdf_path']}")
 
 
 if __name__ == "__main__":
