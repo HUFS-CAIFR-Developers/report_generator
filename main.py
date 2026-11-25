@@ -1,3 +1,4 @@
+import re
 import sys
 from datetime import datetime
 
@@ -14,11 +15,9 @@ from analysis.report_writer import (
 )
 from analysis.summarize import extract_key_sentence, summarize_article
 from analysis.summary_card import generate_summary_card
-from analysis.text_utils import to_plain_text as _plain
 from report.api_upload import post_report
-from report.build_doc import build_report
 from report.html.build_html import export_pdf
-from report.telegram_notify import send_docx_private, send_report
+from report.telegram_notify import send_report
 from sources.article import fetch_article
 from sources.naver_ranking import fetch_economy_headlines
 from sources.stock import fetch_technical_data
@@ -28,7 +27,7 @@ def _build_report(article_title: str, article_summary: str, article_key_sentence
     """기사 제목/요약/핵심문장이 주어지면 관련 기업 선정부터 문서 생성까지 나머지 전체를 처리한다.
     수동 실행(기사 1건)과 자동 실행(오늘의 시황) 양쪽에서 공유하는 본체."""
     print("관련 기업 선정 중...")
-    companies = pick_companies(_plain(article_summary))
+    companies = pick_companies(article_summary)
     if not companies:
         raise RuntimeError("관련 기업을 하나도 매칭하지 못했습니다.")
     print("선정된 기업: " + ", ".join(c["corp_name"] for c in companies))
@@ -45,13 +44,13 @@ def _build_report(article_title: str, article_summary: str, article_key_sentence
         print(f"{i}. {company['corp_name']}({company['ticker']}) 분석 중...")
 
         content = write_investment_analysis(
-            company["corp_name"], company["ticker"], company["reason"], _plain(article_summary)
+            company["corp_name"], company["ticker"], company["reason"], article_summary
         )
-        content_conclusion = one_sentence_conclusion(_plain(content))
+        content_conclusion = one_sentence_conclusion(content)
 
         tech_df = fetch_technical_data(company["ticker"])
         tech_content = write_technical_analysis(company["corp_name"], company["ticker"], tech_df)
-        tech_conclusion = one_sentence_conclusion(_plain(tech_content))
+        tech_conclusion = one_sentence_conclusion(tech_content)
 
         charts = generate_company_charts(tech_df, i, config.CHART_TMP_DIR)
         chart_paths.update(charts)
@@ -67,30 +66,23 @@ def _build_report(article_title: str, article_summary: str, article_key_sentence
         report_pieces.append(tech_content)
 
     print("최종 제목/요약 생성 중...")
-    full_text = "\n\n".join(_plain(p) for p in report_pieces)
+    full_text = "\n\n".join(report_pieces)
     context["title"] = generate_report_title(full_text)
     final_title, final_summary = generate_final_title_summary(full_text)
     context["final_title"] = final_title
     context["final_summary"] = final_summary
     context["date"] = datetime.now().strftime("%Y.%m.%d")
 
-    print("문서 생성 중...")
-    out_path = build_report(context, chart_paths)
+    config.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    company_part = re.sub(r"[^0-9A-Za-z가-힣]+", "", context.get("company1", ""))[:20] or "report"
+    pdf_path = config.OUTPUT_DIR / f"{datetime.now():%Y-%m-%d_%H%M}_{company_part}_report.pdf"
     date_dash = datetime.now().strftime("%Y-%m-%d")
 
-    # PDF 변환·업로드가 실패해도 원본은 남도록 docx를 먼저 비공개 채널로 보낸다.
-    print("docx 원본 비공개 전송 중...")
-    docx_message = f"📄 {date_dash} 원본 docx\n\"{context['title']}\""
-    if send_docx_private(out_path, docx_message):
-        print("docx 비공개 전송 완료")
-    else:
-        print("docx 비공개 전송 건너뜀 (설정 없음 또는 실패)")
-
     print("요약 카드 이미지 생성 중...")
-    card_path = generate_summary_card(context, config.OUTPUT_DIR / f"{out_path.stem}_card.png")
+    card_path = generate_summary_card(context, pdf_path.with_name(f"{pdf_path.stem}_card.png"))
 
-    print("PDF 변환 중...")
-    pdf_path = export_pdf(context, chart_paths, out_path.with_suffix(".pdf"))
+    print("PDF 생성 중...")
+    export_pdf(context, chart_paths, pdf_path)
 
     print("텔레그램 전송 중 (카드+PDF)...")
     message_text = (
@@ -111,7 +103,7 @@ def _build_report(article_title: str, article_summary: str, article_key_sentence
     if team_configured and not team_sent:
         raise RuntimeError("팀 텔레그램 채널로 카드·PDF를 보내지 못했습니다 (사이트 업로드는 완료).")
 
-    return out_path, pdf_path
+    return pdf_path
 
 
 def run(url: str):
@@ -140,24 +132,22 @@ def run_auto():
 
     print("오늘의 시황 브리핑 작성 중...")
     briefing = write_market_briefing(topic)
-    briefing_key_sentence = extract_key_sentence(_plain(briefing))
+    briefing_key_sentence = extract_key_sentence(briefing)
 
     return _build_report(topic["dominant_topic"][:40], briefing, briefing_key_sentence)
 
 
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "--auto":
-        out_path, pdf_path = run_auto()
+        pdf_path = run_auto()
     else:
         url = input("기사 URL을 입력하세요: ").strip()
         if not url:
             print("URL이 입력되지 않았습니다.")
             sys.exit(1)
-        out_path, pdf_path = run(url)
+        pdf_path = run(url)
 
-    print(f"\n완료: {out_path}")
-    if pdf_path:
-        print(f"PDF: {pdf_path}")
+    print(f"\n완료: {pdf_path}")
 
 
 if __name__ == "__main__":

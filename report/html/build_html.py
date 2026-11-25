@@ -1,6 +1,6 @@
 """HTML 템플릿으로 리포트 PDF를 만든다.
 
-build_doc.build_report()와 같은 context·chart_paths를 받아 report/html/template.html을 채운 뒤
+main.py가 만든 context·chart_paths를 받아 report/html/template.html을 채운 뒤
 크롬 headless로 PDF를 인쇄한다. 글꼴·줄 간격·쪽 나누기를 CSS로 정해 서버·PC 어디서 만들어도 모양이 같다.
 PDF는 사이트에 올리는 결과물이라 실패하면 예외를 던져 자동실행 실패 알림으로 이어지게 한다.
 

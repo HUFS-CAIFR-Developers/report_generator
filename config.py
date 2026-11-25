@@ -13,7 +13,7 @@ OPENDART_API_KEY = os.environ["OPENDART_API_KEY"]
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-# docx 원본을 매일 보내는 비공개 채널 (사용자 본인만 보는 용도 - PDF 변환은 본인이 직접).
+# 본인만 보는 비공개 채널 (시작·실패 알림). 예전 docx 원본 채널이라 이름에 DOCX가 남아 있다.
 TELEGRAM_DOCX_CHAT_ID = os.environ.get("TELEGRAM_DOCX_CHAT_ID")
 
 # 사이트 업로드 (caifr_backend#53, report/api_upload.py). 토큰은 서버 deploy/.env.app의
@@ -40,8 +40,6 @@ KRX_MASTER_MAX_AGE_DAYS = 7
 INDEX_UNIVERSE_CSV = BASE_DIR / "data" / "index_universe.csv"
 DART_MAJOR_KEYWORDS_FILE = BASE_DIR / "dart" / "major_keywords.txt"
 DART_SENT_LOG = BASE_DIR / "data" / "dart_sent_ids.json"
-
-TEMPLATE_PATH = BASE_DIR / "report" / "template.docx"
 
 OUTPUT_DIR = BASE_DIR / "output"
 CHART_TMP_DIR = OUTPUT_DIR / ".charts_tmp"
