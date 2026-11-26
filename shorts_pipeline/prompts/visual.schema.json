@@ -1,0 +1,41 @@
+{
+  "type": "object",
+  "properties": {
+    "scene_number": {
+      "type": "integer"
+    },
+    "duration": {
+      "type": "number"
+    },
+    "narration": {
+      "type": "string"
+    },
+    "caption": {
+      "type": "string"
+    },
+    "visual_direction": {
+      "type": "string"
+    },
+    "recommended_asset": {
+      "type": "string",
+      "enum": ["image", "loop_video"]
+    },
+    "image_prompt": {
+      "type": "string"
+    },
+    "loop_video_prompt": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "scene_number",
+    "duration",
+    "narration",
+    "caption",
+    "visual_direction",
+    "recommended_asset",
+    "image_prompt",
+    "loop_video_prompt"
+  ],
+  "additionalProperties": false
+}

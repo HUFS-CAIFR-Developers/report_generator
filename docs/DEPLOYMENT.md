@@ -11,6 +11,11 @@
 3. 팀 텔레그램 채널로 카드+PDF 전송
 4. 백엔드 업로드 (`report/api_upload.py`). 같은 날짜를 다시 올리면 덮어쓰고, 관리자가 붙인 숏츠 주소는 유지된다
 5. 어느 단계든 실패하거나 10분을 넘기면 비공개 채널로 실패 알림
+6. 숏츠 (`shorts_pipeline/`, 옛 auto-n8n): 올린 PDF로 9:16 영상을 만들어 유튜브에 올리고, 숏츠 주소를 붙여 리포트를 같은 날짜로 다시 올린다
+   - 요약·대본 OpenAI, 목소리 Typecast, 장면 영상 Higgsfield, 자막·배속 ffmpeg
+   - 리포트와 따로 최대 60분. 실패·시간초과여도 리포트는 그대로 두고 비공개 채널로 알린다
+   - `TYPECAST_API_KEY`가 없으면 숏츠만 건너뛴다. 결과는 실행 기록 `stats.shorts`(uploaded·failed 등)에 남는다
+   - 영상과 단계별 기록은 `output/shorts/`(`runs/<시각>/run.log`)에 남는다
 
 ## 글꼴
 
@@ -28,6 +33,11 @@ PDF 모양(표지·2단 본문·차트 배치·쪽 나누기)은 `report/html/te
 | `REPORT_API_URL` | | 기본값 `https://api.caifr.com/api/generator/reports`. 실행 기록은 같은 서버의 `.../api/generator/runs`로 보낸다 (주소·토큰이 없으면 기록만 건너뛴다) |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_DOCX_CHAT_ID` | O | 비공개 채널 (시작·실패 알림). 이름은 예전 docx 채널 그대로. 없으면 실패해도 알림이 오지 않는다 |
 | `TELEGRAM_CHAT_ID` | | 팀 채널 (카드+PDF). 설정했는데 전송에 실패하면 실패 알림 |
+| `TYPECAST_API_KEY`, `HIGGSFIELD_API_KEY`, `HIGGSFIELD_API_SECRET` | | 숏츠 목소리·장면 영상. `TYPECAST_API_KEY`가 없으면 숏츠를 건너뛴다 |
+| `YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`, `YOUTUBE_REFRESH_TOKEN` | | 숏츠 업로드 (`youtube.upload` 범위 refresh token, OAuth Playground로 발급) |
+| `YOUTUBE_PRIVACY_STATUS` | | 비우면 `private`(비공개). 공개하려면 `public`. 공개로 올리면 구독자 알림도 간다 |
+| `POLL_TIMEOUT_SEC` | | 장면 영상 하나를 기다리는 최대 시간. 비우면 600초, 넘으면 그 장면만 빼고 계속한다 |
+| `YOUTUBE_UPLOAD` | | `false`면 영상만 만들고 올리지 않는다 |
 
 배포 뒤 아래로 이름만 확인한다 (값은 출력하지 않는다).
 
@@ -68,4 +78,14 @@ cron (UTC). 일요일 23시 UTC가 월요일 08시 KST라 두 줄로 나눈다. 
 ```cron
 */30 23 * * 0-4 docker run --rm --name caifr-dart-monitor --cpus 0.5 --memory 512m --env-file /home/ubuntu/report_generator/.env -v /home/ubuntu/report_generator/state:/app/state -e DART_SENT_LOG=/app/state/dart_sent_ids.json caifr-report-generator python dart_monitor.py >> /home/ubuntu/report_generator/logs/dart.log 2>&1
 */30 0-10 * * 1-5 docker run --rm --name caifr-dart-monitor --cpus 0.5 --memory 512m --env-file /home/ubuntu/report_generator/.env -v /home/ubuntu/report_generator/state:/app/state -e DART_SENT_LOG=/app/state/dart_sent_ids.json caifr-report-generator python dart_monitor.py >> /home/ubuntu/report_generator/logs/dart.log 2>&1
+```
+
+## 숏츠 테스트
+
+외부 API는 가짜로 바꾸고 실제 ffmpeg로 렌더링까지 확인한다 (`tests/shorts/`는 auto-n8n에서 옮긴 n8n 동등성 테스트).
+
+```bash
+docker build -t caifr-report-generator .
+docker run --rm -e OPENAI_API_KEY=x -e OPENDART_API_KEY=x -e TEST_FONTS_DIR=/app/report/html/fonts caifr-report-generator \
+  sh -c 'pip install -q --user pytest && python -m pytest -q tests'
 ```

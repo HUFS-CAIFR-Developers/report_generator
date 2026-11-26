@@ -1,5 +1,9 @@
-# Oracle 서버(ARM)에서 하루 한 번 도는 리포트 생성기. PDF는 HTML 템플릿을 Chromium으로 인쇄해 만든다
+# Oracle 서버(ARM)에서 하루 한 번 도는 리포트 생성기. PDF는 HTML 템플릿을 Chromium으로 인쇄해 만들고,
+# 숏츠 영상(shorts_pipeline)은 ffmpeg로 만든다. ffmpeg는 n8n 때와 같은 정적 빌드 6.0을 쓴다
+FROM mwader/static-ffmpeg:6.0 AS ffmpeg
+
 FROM python:3.12-slim-bookworm
+COPY --from=ffmpeg /ffmpeg /ffprobe /usr/local/bin/
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends chromium fonts-nanum fontconfig tzdata \
