@@ -24,7 +24,9 @@ import requests
 import config
 
 
-def post_report(pdf_path: Path, card_path: Path | None, context: dict, category: str = "daily") -> dict:
+def post_report(pdf_path: Path, card_path: Path | None, context: dict, category: str = "daily",
+                youtube_url: str = "") -> dict:
+    """youtube_url을 비워 보내면 백엔드가 관리자가 붙인 기존 숏츠 주소를 둔다. card_path가 없으면 기존 썸네일을 둔다."""
     if not config.REPORT_API_TOKEN:
         raise RuntimeError("REPORT_API_TOKEN이 없어 사이트에 올리지 못했습니다.")
     if not config.REPORT_API_URL.startswith("https://"):
@@ -41,6 +43,7 @@ def post_report(pdf_path: Path, card_path: Path | None, context: dict, category:
         "highlights": [context["article_summary1"]],
         "body": f"{context['article_title']}\n\n{context['article_content']}",
         "published": True,
+        "youtube_url": youtube_url,
     }
     files = {
         "report": (None, json.dumps(report, ensure_ascii=False), "application/json"),

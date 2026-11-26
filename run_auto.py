@@ -7,12 +7,14 @@ import threading
 import time
 import traceback
 from datetime import datetime
+from pathlib import Path
 
 import exchange_calendars as xcals
 
+import config
 from analysis import llm
 from main import RUN_STATE, run_auto
-from report.api_upload import post_run
+from report.api_upload import post_report, post_run
 from report.telegram_notify import send_text_private
 
 _NETWORK_WAIT_MAX_SECONDS = 120
@@ -23,6 +25,10 @@ _NETWORK_WAIT_INTERVAL_SECONDS = 5
 # 타임아웃(config.OPENAI_TIMEOUT_SECONDS)과 별개로, 다른 어떤 단계가 멈추든 잡아내는
 # 전체 안전장치.)
 _PIPELINE_TIMEOUT_SECONDS = 600
+
+# 숏츠는 리포트를 올린 뒤 따로 만든다. 장면 영상 생성(Higgsfield)이 오래 걸려 리포트 시간 제한과 따로 둔다
+_SHORTS_TIMEOUT_SECONDS = 3600
+_SHORTS_FONTS_DIR = Path(__file__).resolve().parent / "report" / "html" / "fonts"
 
 
 def is_krx_trading_day(date) -> bool:
@@ -44,7 +50,8 @@ def _wait_for_network() -> bool:
     return False
 
 
-def _post_run(status: str, started_at: datetime, step: str | None = None, message: str | None = None):
+def _post_run(status: str, started_at: datetime, step: str | None = None, message: str | None = None,
+              shorts: str | None = None):
     """실행 기록 (POST /api/generator/runs). 기록이 실패해도 본 작업(시간초과 때의 강제 종료 포함)은 그대로 진행한다."""
     try:
         # 업로드 여부와 사용량을 한곳에서 한 번에 읽어 기록한다 (시간초과 때는 이 뒤의 변화가 빠질 수 있다)
@@ -56,11 +63,67 @@ def _post_run(status: str, started_at: datetime, step: str | None = None, messag
             started_at,
             step=step,
             message=message,
-            stats={**usage_stats, "uploaded": uploaded},
+            stats={**usage_stats, "uploaded": uploaded, **({"shorts": shorts} if shorts else {})},
             usage=usage_items,
         )
     except Exception as e:
         print(f"실행 기록 전송 실패 (건너뜀): {type(e).__name__}: {e}")
+
+
+def _run_shorts(today: datetime, pdf_path: Path) -> str:
+    """올린 리포트 PDF로 숏츠를 만들어 유튜브에 올리고, 숏츠 주소를 붙여 리포트를 다시 올린다.
+    숏츠가 실패해도 리포트는 이미 올라가 있으므로 예외를 던지지 않고 비공개 채널로 알린 뒤 결과만 돌려준다.
+    결과: skipped(키 없음) / no_upload(유튜브 업로드 꺼짐) / uploaded / link_failed / failed / timeout"""
+    from shorts_pipeline import Settings, make_shorts
+
+    settings = Settings.from_env(None)  # 키는 config가 읽은 .env·서버 환경 변수에서 그대로 가져온다
+    if not settings.typecast_api_key:
+        print("숏츠 건너뜀 (TYPECAST_API_KEY 없음)")
+        return "skipped"
+    settings.output_dir = config.OUTPUT_DIR / "shorts"
+    settings.fonts_dir = _SHORTS_FONTS_DIR
+
+    RUN_STATE["step"] = "shorts"
+    print("숏츠 생성 중...")
+    out = {}
+
+    def _run():
+        try:
+            out["video"] = make_shorts(pdf_path, settings)
+        except Exception as e:
+            out["error"] = e
+            out["traceback"] = traceback.format_exc()
+
+    worker = threading.Thread(target=_run, daemon=True)
+    worker.start()
+    worker.join(timeout=_SHORTS_TIMEOUT_SECONDS)
+
+    date = today.strftime("%Y-%m-%d")
+    if worker.is_alive():
+        print(f"숏츠가 {_SHORTS_TIMEOUT_SECONDS}초 넘게 끝나지 않아 기다리지 않고 끝냅니다.")
+        send_text_private(f"⚠️ {date} 숏츠 실패\n\n{_SHORTS_TIMEOUT_SECONDS // 60}분 넘게 끝나지 않았습니다. 리포트는 올라가 있습니다.")
+        return "timeout"
+    if "error" in out:
+        print("숏츠 생성 중 오류 발생:")
+        print(out["traceback"])
+        e = out["error"]
+        send_text_private(f"⚠️ {date} 숏츠 실패\n\n{type(e).__name__}: {e}\n\n리포트는 올라가 있습니다.")
+        return "failed"
+
+    video = out["video"]
+    if not video.youtube_video_id:
+        print(f"숏츠 영상만 만들었습니다 (유튜브 업로드 꺼짐): {video.video_path}")
+        return "no_upload"
+    url = f"https://youtube.com/shorts/{video.youtube_video_id}"
+    try:
+        # 같은 날짜로 다시 올려 숏츠 주소만 붙인다. 카드를 보내지 않아 썸네일은 그대로 둔다
+        post_report(pdf_path, None, RUN_STATE["context"], youtube_url=url)
+    except Exception as e:
+        send_text_private(f"⚠️ {date} 숏츠는 올렸지만 사이트에 주소를 붙이지 못했습니다\n\n{url}\n{type(e).__name__}: {e}")
+        return "link_failed"
+    print(f"숏츠 업로드·연결 완료: {url}")
+    send_text_private(f"🎬 {date} 숏츠 업로드 완료\n{url}")
+    return "uploaded"
 
 
 def main():
@@ -123,8 +186,9 @@ def main():
         _post_run("FAILED", today, RUN_STATE["step"], f"{type(e).__name__}: {e}")
         sys.exit(1)
 
-    _post_run("SUCCEEDED", today)
-    print(f"완료: {result['pdf_path']}")
+    shorts = _run_shorts(today, result["pdf_path"])
+    _post_run("SUCCEEDED", today, shorts=shorts)
+    print(f"완료: {result['pdf_path']} (숏츠: {shorts})")
 
 
 if __name__ == "__main__":

@@ -23,8 +23,9 @@ from sources.naver_ranking import fetch_economy_headlines
 from sources.stock import fetch_technical_data
 
 # 자동실행 기록(run_auto.py → POST /api/generator/runs)에 남길 현재 단계와 사이트 업로드 여부.
-# 실패·시간초과 때 어느 단계에서 멈췄는지 알 수 있게 단계마다 바꾼다
-RUN_STATE = {"step": None, "uploaded": False}
+# 실패·시간초과 때 어느 단계에서 멈췄는지 알 수 있게 단계마다 바꾼다.
+# context는 업로드한 리포트 내용으로, 숏츠를 만든 뒤 숏츠 주소를 붙여 다시 올릴 때 쓴다 (run_auto.py)
+RUN_STATE = {"step": None, "uploaded": False, "context": None}
 
 
 def _step(name: str):
@@ -113,6 +114,7 @@ def _build_report(article_title: str, article_summary: str, article_key_sentence
     print("사이트 업로드 중...")
     uploaded = post_report(pdf_path, card_path, context)
     RUN_STATE["uploaded"] = True
+    RUN_STATE["context"] = context
     print(f"사이트 업로드 완료: {uploaded.get('id', '')}")
 
     # 설정했는데 팀 채널 전송만 실패했으면, 사이트 업로드는 마친 뒤 실패 알림으로 알린다
