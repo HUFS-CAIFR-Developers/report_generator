@@ -28,6 +28,8 @@ _PIPELINE_TIMEOUT_SECONDS = 600
 
 # 숏츠는 리포트를 올린 뒤 따로 만든다. 장면 영상 생성(Higgsfield)이 오래 걸려 리포트 시간 제한과 따로 둔다
 _SHORTS_TIMEOUT_SECONDS = 3600
+# 장면 영상은 하나씩 만들어서, 장면당 기다리는 시간을 줄여 멈춘 장면은 건너뛰고 60분 안에 끝나게 한다 (서버 .env의 POLL_TIMEOUT_SEC가 우선)
+_SHORTS_SCENE_TIMEOUT_SECONDS = 600
 _SHORTS_FONTS_DIR = Path(__file__).resolve().parent / "report" / "html" / "fonts"
 
 
@@ -74,14 +76,25 @@ def _run_shorts(today: datetime, pdf_path: Path) -> str:
     """올린 리포트 PDF로 숏츠를 만들어 유튜브에 올리고, 숏츠 주소를 붙여 리포트를 다시 올린다.
     숏츠가 실패해도 리포트는 이미 올라가 있으므로 예외를 던지지 않고 비공개 채널로 알린 뒤 결과만 돌려준다.
     결과: skipped(키 없음) / no_upload(유튜브 업로드 꺼짐) / uploaded / link_failed / failed / timeout"""
-    from shorts_pipeline import Settings, make_shorts
+    date = today.strftime("%Y-%m-%d")
+    try:
+        from shorts_pipeline import Settings, make_shorts
 
-    settings = Settings.from_env(None)  # 키는 config가 읽은 .env·서버 환경 변수에서 그대로 가져온다
+        settings = Settings.from_env(None)  # 키는 config가 읽은 .env·서버 환경 변수에서 그대로 가져온다
+    except Exception as e:  # 설정값 오타 등. 리포트는 이미 올라가 있으니 알림만 보낸다
+        print(f"숏츠 설정 오류: {type(e).__name__}: {e}")
+        send_text_private(f"⚠️ {date} 숏츠 실패\n\n설정 오류: {type(e).__name__}: {e}\n\n리포트는 올라가 있습니다.")
+        return "failed"
     if not settings.typecast_api_key:
         print("숏츠 건너뜀 (TYPECAST_API_KEY 없음)")
         return "skipped"
     settings.output_dir = config.OUTPUT_DIR / "shorts"
     settings.fonts_dir = _SHORTS_FONTS_DIR
+    if not os.environ.get("POLL_TIMEOUT_SEC"):
+        settings.poll_timeout_sec = _SHORTS_SCENE_TIMEOUT_SECONDS
+    if not os.environ.get("YOUTUBE_PRIVACY_STATUS"):
+        # 코드 기본값(n8n과 같음)은 공개 + 구독자 알림이라, 서버에서 일부러 정하지 않았으면 비공개로 올린다
+        settings.youtube_privacy_status = "private"
 
     RUN_STATE["step"] = "shorts"
     print("숏츠 생성 중...")
@@ -98,7 +111,6 @@ def _run_shorts(today: datetime, pdf_path: Path) -> str:
     worker.start()
     worker.join(timeout=_SHORTS_TIMEOUT_SECONDS)
 
-    date = today.strftime("%Y-%m-%d")
     if worker.is_alive():
         print(f"숏츠가 {_SHORTS_TIMEOUT_SECONDS}초 넘게 끝나지 않아 기다리지 않고 끝냅니다.")
         send_text_private(f"⚠️ {date} 숏츠 실패\n\n{_SHORTS_TIMEOUT_SECONDS // 60}분 넘게 끝나지 않았습니다. 리포트는 올라가 있습니다.")

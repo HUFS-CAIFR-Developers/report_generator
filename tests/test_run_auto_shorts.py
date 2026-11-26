@@ -1,5 +1,6 @@
 """run_auto._run_shorts 연결 확인: 숏츠 결과에 따라 리포트를 다시 올리는지, 실패해도 예외 없이 끝나는지.
 외부 API는 부르지 않는다. 실행: python -m pytest tests/test_run_auto_shorts.py"""
+import json
 import os
 from datetime import datetime
 from pathlib import Path
@@ -48,6 +49,59 @@ def test_uploaded_links_url_without_card(monkeypatch):
     assert seen["pdf"] == PDF
     assert seen["settings"].fonts_dir.joinpath("Pretendard-Bold.otf").is_file()
     assert seen["settings"].output_dir.name == "shorts"
+    # 서버에서 정하지 않았으면 비공개, 장면당 대기 10분
+    assert seen["settings"].youtube_privacy_status == "private"
+    assert seen["settings"].poll_timeout_sec == 600
+
+
+def test_server_settings_win(monkeypatch):
+    seen = {}
+
+    def fake(pdf, settings):
+        seen["settings"] = settings
+        return SimpleNamespace(youtube_video_id=None, video_path=Path("/tmp/v.mp4"))
+
+    _setup(monkeypatch, fake)
+    monkeypatch.setenv("YOUTUBE_PRIVACY_STATUS", "public")
+    monkeypatch.setenv("POLL_TIMEOUT_SEC", "1200")
+    run_auto._run_shorts(TODAY, PDF)
+    assert seen["settings"].youtube_privacy_status == "public"
+    assert seen["settings"].poll_timeout_sec == 1200
+
+
+def test_bad_setting_alerts_instead_of_crashing(monkeypatch):
+    calls = _setup(monkeypatch, lambda *a: 1 / 0)
+    monkeypatch.setenv("SPEED_FACTOR", "abc")
+    assert run_auto._run_shorts(TODAY, PDF) == "failed"
+    assert "설정 오류" in calls["alerts"][0]
+
+
+def test_reupload_keeps_report_date(monkeypatch, tmp_path):
+    from report import api_upload
+
+    sent = {}
+
+    class Resp:
+        status_code = 200
+
+        def json(self):
+            return {"id": "r1"}
+
+    def fake_post(url, files, **kwargs):
+        sent["report"] = json.loads(files["report"][1])
+        return Resp()
+
+    pdf = tmp_path / "r.pdf"
+    pdf.write_bytes(b"%PDF")
+    monkeypatch.setattr(api_upload.config, "REPORT_API_TOKEN", "t")
+    monkeypatch.setattr(api_upload.config, "REPORT_API_URL", "https://api.example.com/api/generator/reports")
+    monkeypatch.setattr(api_upload.requests, "post", fake_post)
+    context = {"date": "2026.11.26", "company1": "삼성전자", "final_title": "t", "final_summary": "s",
+               "article_summary1": "k", "article_title": "a", "article_content": "c"}
+    api_upload.post_report(pdf, None, context, youtube_url="https://youtube.com/shorts/abc")
+    # 자정이 지나 다시 올려도 리포트를 만든 날짜 그대로
+    assert sent["report"]["date"] == "2026-11-26"
+    assert sent["report"]["youtube_url"] == "https://youtube.com/shorts/abc"
 
 
 def test_no_upload_does_not_repost(monkeypatch):

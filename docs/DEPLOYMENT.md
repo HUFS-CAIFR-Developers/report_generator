@@ -35,7 +35,8 @@ PDF 모양(표지·2단 본문·차트 배치·쪽 나누기)은 `report/html/te
 | `TELEGRAM_CHAT_ID` | | 팀 채널 (카드+PDF). 설정했는데 전송에 실패하면 실패 알림 |
 | `TYPECAST_API_KEY`, `HIGGSFIELD_API_KEY`, `HIGGSFIELD_API_SECRET` | | 숏츠 목소리·장면 영상. `TYPECAST_API_KEY`가 없으면 숏츠를 건너뛴다 |
 | `YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`, `YOUTUBE_REFRESH_TOKEN` | | 숏츠 업로드 (`youtube.upload` 범위 refresh token, OAuth Playground로 발급) |
-| `YOUTUBE_PRIVACY_STATUS` | | 비우면 공개 + 구독자 알림. `private`로 먼저 확인한다 |
+| `YOUTUBE_PRIVACY_STATUS` | | 비우면 `private`(비공개). 공개하려면 `public`. 공개로 올리면 구독자 알림도 간다 |
+| `POLL_TIMEOUT_SEC` | | 장면 영상 하나를 기다리는 최대 시간. 비우면 600초, 넘으면 그 장면만 빼고 계속한다 |
 | `YOUTUBE_UPLOAD` | | `false`면 영상만 만들고 올리지 않는다 |
 
 배포 뒤 아래로 이름만 확인한다 (값은 출력하지 않는다).

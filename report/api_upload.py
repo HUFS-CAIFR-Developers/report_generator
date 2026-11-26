@@ -34,7 +34,8 @@ def post_report(pdf_path: Path, card_path: Path | None, context: dict, category:
 
     summary = context["final_summary"]
     report = {
-        "date": datetime.now().strftime("%Y-%m-%d"),
+        # 리포트를 만든 날짜 (숏츠 주소를 붙여 다시 올릴 때 자정이 지나도 같은 날짜로 덮어쓰게)
+        "date": context["date"].replace(".", "-"),
         "category": category,
         "company": context["company1"],
         "title": context["final_title"],
