@@ -97,3 +97,16 @@ def test_poll_timeout():
     s = FakeSession({"image1": ["queued"] * 100})
     with pytest.raises(AssetGenerationError, match="타임아웃"):
         client(s, timeout=20).generate({**VISUAL, "recommended_asset": "image"})
+
+
+@pytest.mark.parametrize("asset,body", [
+    ("loop_video", {"status": "completed"}),
+    ("loop_video", {"status": "completed", "video": None}),
+    ("image", {"status": "completed", "images": []}),
+])
+def test_completed_without_url_skips_scene(asset, body):
+    """완료라면서 결과 주소가 없으면 그 장면만 건너뛰도록 AssetGenerationError (숏츠 전체를 멈추지 않게)."""
+    s = FakeSession({})
+    s.get = lambda url, headers=None, timeout=None: Resp(json_data=body)
+    with pytest.raises(AssetGenerationError, match="결과 주소"):
+        client(s).generate({**VISUAL, "recommended_asset": asset})

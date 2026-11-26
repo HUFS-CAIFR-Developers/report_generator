@@ -57,6 +57,14 @@ def video_payload(prompt: str, duration: Any) -> dict[str, Any]:
     }
 
 
+def _result_url(body: dict[str, Any], label: str, scene: Any) -> str:
+    """완료 응답의 결과 주소. 주소가 빠져 있으면 그 장면만 건너뛰도록 AssetGenerationError로 바꾼다."""
+    try:
+        return body["video"]["url"] if label == "video" else body["images"][0]["url"]
+    except (KeyError, IndexError, TypeError) as e:
+        raise AssetGenerationError("higgsfield", f"{label} 완료 응답에 결과 주소가 없습니다: {e!r}", scene=scene) from e
+
+
 class HiggsfieldClient:
     def __init__(self, auth_header: str, base_url: str = "https://api.higgsfield.ai", *,
                  poll_interval: float = 5.0, poll_timeout: float = 1800.0,
@@ -80,12 +88,12 @@ class HiggsfieldClient:
         if kind == "loop_video":
             body = self._run_job(VIDEO_PATH, video_payload(visual["loop_video_prompt"], visual["duration"]),
                                  scene, "video")
-            return Asset("video", self._download(body["video"]["url"], scene))
+            return Asset("video", self._download(_result_url(body, "video", scene), scene))
         raise PipelineError("higgsfield", f"알 수 없는 recommended_asset: {kind!r}", scene=scene)
 
     def generate_image(self, prompt: str, scene: Any) -> bytes:
         body = self._run_job(IMAGE_PATH, image_payload(prompt), scene, "image")
-        return self._download(body["images"][0]["url"], scene)
+        return self._download(_result_url(body, "image", scene), scene)
 
     # ---------- internals ----------
     def _headers(self, json_body: bool = False) -> dict[str, str]:

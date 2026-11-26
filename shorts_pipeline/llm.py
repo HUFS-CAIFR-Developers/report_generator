@@ -87,7 +87,8 @@ class LLMClient(Protocol):
 class OpenAIClient:
     """OpenAI Responses API + strict json_schema (n8n OpenAI 노드 v2.3 과 같은 호출 방식)."""
 
-    def __init__(self, api_key: str, model: str, max_retries: int = 3, timeout: float = 600.0):
+    # 호출 하나가 멈춰 숏츠 전체 제한(60분)을 다 쓰지 않게 리포트 쪽(config.OPENAI_TIMEOUT_SECONDS=90)과 비슷하게 둔다
+    def __init__(self, api_key: str, model: str, max_retries: int = 3, timeout: float = 120.0):
         from openai import OpenAI
 
         self.model = model
